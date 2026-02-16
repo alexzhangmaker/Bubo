@@ -1,0 +1,15 @@
+{
+  "name": "bubo",
+  "version": "1.0.0",
+  "description": "A new project",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}
