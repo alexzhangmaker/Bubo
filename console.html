@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubo Dashboard | Intelligence Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Plus+Jakarta+Sans:wght@400;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --sidebar-bg: #0c0c0c;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --accent-primary: #a78bfa;
+            --accent-secondary: #6366f1;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --sidebar-width: 260px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo h1 span {
+            color: var(--accent-primary);
+        }
+
+        .nav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(167, 139, 250, 0.1), transparent);
+            border-left: 3px solid var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .status-badge {
+            margin-top: auto;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+
+        .indicator.online {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            padding: 2rem 3rem;
+            overflow-y: auto;
+            background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-primary);
+        }
+
+        /* Data Grid/List */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(167, 139, 250, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .badge-buy {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .badge-sell {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .card-body {
+            font-size: 0.9375rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .price-tag {
+            font-family: 'JetBrains Mono', monospace;
+            color: #fff;
+            font-size: 1.125rem;
+            margin-top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .price-tag span {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .raw-text {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            font-style: italic;
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--sidebar-bg);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🦉</div>
+            <h1>Bubo<span>Console</span></h1>
+        </div>
+
+        <nav>
+            <ul class="nav-list">
+                <li class="nav-item active" data-view="trades">
+                    <span>📈</span> Trades
+                </li>
+                <li class="nav-item" data-view="reminders">
+                    <span>⏰</span> Reminders
+                </li>
+                <li class="nav-item" data-view="urls">
+                    <span>🔗</span> Collected URLs
+                </li>
+                <li class="nav-item" data-view="users">
+                    <span>👤</span> Registered Users
+                </li>
+            </ul>
+        </nav>
+
+        <div class="status-badge">
+            <div class="indicator" id="status-indicator"></div>
+            <div>
+                <p style="font-size: 0.7rem; color: var(--text-secondary);">Agent Engine</p>
+                <p id="status-text" style="font-size: 0.85rem; font-weight: 600;">Connecting...</p>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="header">
+            <h2 id="view-title">Recent Trades</h2>
+            <div class="controls">
+                <button class="btn" id="refresh-btn">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <div id="data-container" class="data-grid">
+            <!-- Data will be injected here -->
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = 'http://localhost:6565';
+        let currentView = 'trades';
+
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const dataContainer = document.getElementById('data-container');
+        const viewTitle = document.getElementById('view-title');
+
+        async function checkStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                if (res.ok) {
+                    statusIndicator.classList.add('online');
+                    statusText.innerText = 'Online :6565';
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                statusIndicator.classList.remove('online');
+                statusText.innerText = 'Offline';
+            }
+        }
+
+        async function fetchData() {
+            dataContainer.innerHTML = '<div class="empty-state">Loading data...</div>';
+            try {
+                const res = await fetch(`${API_BASE}/api/${currentView}`);
+                const data = await res.json();
+
+                if (!data || data.length === 0) {
+                    dataContainer.innerHTML = '<div class="empty-state">No data found in this category.</div>';
+                    return;
+                }
+
+                renderData(data);
+            } catch (err) {
+                dataContainer.innerHTML = `<div class="empty-state">Error fetching data: ${err.message}. Ensure the agent is running.</div>`;
+            }
+        }
+
+        function renderData(data) {
+            dataContainer.innerHTML = '';
+
+            if (currentView === 'trades') {
+                data.forEach(t => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span class="badge ${t.side === 'BUY' ? 'badge-buy' : 'badge-sell'}">${t.side}</span>
+                            <span>${t.created_at}</span>
+                        </div>
+                        <div class="card-title">
+                            ${t.symbol} <span>${t.quantity} Shares</span>
+                        </div>
+                        <div class="price-tag">
+                            ${t.price} <span>${t.currency}</span>
+                        </div>
+                        <div class="raw-text">${t.raw_text}</div>
+                    `;
+                    dataContainer.appendChild(card);
+                });
+            } else if (currentView === 'reminders') {
+                data.forEach(r => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span>EVENT DATE</span>
+                            <span>${r.event_date || 'N/A'}</span>
+                        </div>
+                        <div class="card-title">🗓️ ${r.description || 'No Description'}</div>
+                        <div class="card-body">Recorded on: ${r.created_at}</div>
+                        <div class="raw-text">${r.raw_text || 'No raw text available'}</div>
+                    `;
+                    dataContainer.appendChild(card);
+                });
+            } else if (currentView === 'urls') {
+                data.forEach(u => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span>SAVED URL</span>
+                            <span>${u.created_at}</span>
+                        </div>
+                        <div class="card-title" style="word-break: break-all; font-size: 1rem;">
+                            🔗 <a href="${u.url}" target="_blank" style="color: var(--accent-primary); text-decoration: none;">${u.url}</a>
+                        </div>
+                    `;
+                    dataContainer.appendChild(card);
+                });
+            } else if (currentView === 'users') {
+                data.forEach(u => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span>ID: ${u.telegram_id}</span>
+                            <span>${u.created_at}</span>
+                        </div>
+                        <div class="card-title">👤 ${u.username}</div>
+                        <div class="card-body">
+                            ${u.first_name} ${u.last_name}<br>
+                         </div>
+                        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                            <input type="text" id="msg-${u.username}" placeholder="Message..." style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; color: #fff; padding: 4px 8px; font-size: 0.8rem;">
+                            <button class="btn" onclick="sendNotification('${u.username}')" style="padding: 4px 12px; font-size: 0.75rem;">Send</button>
+                        </div>
+                    `;
+                    dataContainer.appendChild(card);
+                });
+            }
+        }
+
+        async function sendNotification(username) {
+            const msgInput = document.getElementById(`msg-${username}`);
+            const message = msgInput.value;
+            if (!message) return alert('Please enter a message');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/notify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, message })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    alert('✅ Notification sent!');
+                    msgInput.value = '';
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (err) {
+                alert('❌ Error: ' + err.message);
+            }
+        }
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                currentView = item.dataset.view;
+                viewTitle.innerText = item.innerText.trim();
+                fetchData();
+            });
+        });
+
+        document.getElementById('refresh-btn').addEventListener('click', fetchData);
+
+        // Init
+        checkStatus();
+        fetchData();
+        setInterval(checkStatus, 5000);
+    </script>
+</body>
+
+</html>

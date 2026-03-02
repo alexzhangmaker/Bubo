@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能阅读助手设置</title>
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+    <div class="sidepanel-container">
+        <header class="sidepanel-header">
+            <h1>智能阅读助手</h1>
+            <p>配置网站内容选择器</p>
+        </header>
+
+        <main class="sidepanel-content">
+            <div class="current-site">
+                <h3>当前网站</h3>
+                <div id="currentSiteInfo">
+                    <p>请刷新页面后查看</p>
+                </div>
+            </div>
+
+            <div class="selector-config">
+                <h3>内容选择器配置</h3>
+                <div class="config-form">
+                    <div class="form-group">
+                        <label for="siteDomain">网站域名:</label>
+                        <input type="text" id="siteDomain" placeholder="例如: xueqiu.com">
+                        <small>只需输入主域名，会自动匹配所有子域名</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contentSelector">内容选择器:</label>
+                        <input type="text" id="contentSelector" placeholder="例如: .article-content">
+                        <small>CSS选择器，用于定位文章内容区域</small>
+                    </div>
+                    
+                    <button id="addSelector" class="btn-primary">添加配置</button>
+                </div>
+            </div>
+
+            <div class="existing-configs">
+                <h3>现有配置</h3>
+                <div id="configList" class="config-list">
+                    <!-- 配置列表会动态生成 -->
+                </div>
+            </div>
+
+            <div class="tools">
+                <h3>工具</h3>
+                <button id="detectSelector" class="btn-secondary">检测当前页面选择器</button>
+                <button id="exportConfig" class="btn-secondary">导出配置</button>
+                <button id="importConfig" class="btn-secondary">导入配置</button>
+            </div>
+
+            <!-- 在 sidepanel.html 的现有配置后添加 -->
+            <div class="sidebar-section">
+                <h3>排除网站</h3>
+                <div class="excluded-sites">
+                <div class="form-group">
+                    <label>添加要排除的网站:</label>
+                    <input type="text" id="excludeSite" placeholder="例如: localhost, google.com">
+                    <small>输入域名，不需要 http://</small>
+                </div>
+                <button id="addExcludedSite" class="btn-secondary">添加排除</button>
+                
+                <div class="excluded-list">
+                    <h4>已排除的网站:</h4>
+                    <div id="excludedSitesList"></div>
+                </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html>

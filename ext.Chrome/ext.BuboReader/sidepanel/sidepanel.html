@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuboReader - Side Panel</title>
+    <link rel="stylesheet" href="sidepanel.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f6f6f6;
+        }
+
+        .sidepanel-tabs {
+            display: flex;
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #5f6368;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            color: #1a73e8;
+            border-bottom-color: #1a73e8;
+            background: #f8f9fa;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            padding: 8px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            color: #5f6368;
+        }
+
+        .icon-btn:hover {
+            background-color: #f1f3f4;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Crane specific styles */
+        .config-section {
+            padding: 15px;
+        }
+
+        .config-form {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #3c4043;
+        }
+
+        .form-group input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+        }
+
+        .form-group small {
+            font-size: 11px;
+            color: #70757a;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 10px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            padding: 8px;
+            background: #fff;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .config-item {
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .config-domain {
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .config-selector {
+            font-size: 12px;
+            color: #70757a;
+        }
+
+        .delete-btn {
+            color: #d93025;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .delete-btn:hover {
+            background: #fce8e6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidepanel-tabs">
+        <button class="tab-btn active" data-tab="notes">Notes</button>
+        <button class="tab-btn" data-tab="site-config">Site Config</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+    </div>
+
+    <div class="toolbar" id="notes-toolbar">
+        <button id="add-note-btn" class="icon-btn" title="Add Note">
+            <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+                <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+            </svg>
+        </button>
+        <button id="search-btn" class="icon-btn" title="Search Notes">
+            <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+                <path
+                    d="M784-120 532-372q-30 24-69 38t-83 14q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l252 252-56 56ZM380-400q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z" />
+            </svg>
+        </button>
+        <div style="width: 1px; height: 16px; background: #e0e0e0; margin: 0 4px;"></div>
+        <button id="account-btn" class="icon-btn" title="Account">
+            <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+                <path
+                    d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Z" />
+            </svg>
+        </button>
+    </div>
+
+    <div id="search-bar" style="display: none; padding: 8px; background: #fff; border-bottom: 1px solid #ddd;">
+        <input type="text" id="search-input" placeholder="Search notes..."
+            style="width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; outline: none;">
+    </div>
+
+    <main>
+        <!-- Notes Tab -->
+        <div id="tab-notes" class="tab-content active">
+            <div id="account-panel"
+                style="display: none; padding: 15px; background: #fff; border-bottom: 1px solid #eee;">
+                <div id="auth-status-container" style="text-align: center;">
+                    <div id="user-info" style="display: none; margin-bottom: 10px;">
+                        <img id="user-avatar" src=""
+                            style="width: 48px; height: 48px; border-radius: 50%; margin-bottom: 5px;">
+                        <div id="user-email" style="font-size: 13px; font-weight: 500;"></div>
+                    </div>
+                    <button id="login-btn" class="btn-primary">Sign in with Google</button>
+                    <button id="logout-btn" class="btn-secondary" style="display: none; color: #ea4335;">Sign
+                        Out</button>
+                </div>
+            </div>
+            <div id="notes-list" style="padding: 15px;">
+                <div style="color: #777; font-style: italic; text-align: center; margin-top: 50px;">Select text in
+                    Reader Mode to add a note.</div>
+            </div>
+        </div>
+
+        <!-- Site Config Tab -->
+        <div id="tab-site-config" class="tab-content">
+            <div class="config-section">
+                <h3>Current Site</h3>
+                <div id="currentSiteInfo" class="config-form">
+                    <p style="font-size: 13px; color: #666;">Refresh page to view info</p>
+                </div>
+                <button id="collect-to-bubo" class="btn-primary" style="margin-bottom: 20px;">📥 Collect to
+                    Bubo</button>
+
+                <h3>Selector Config</h3>
+                <div class="config-form">
+                    <div class="form-group">
+                        <label for="siteDomain">Domain:</label>
+                        <input type="text" id="siteDomain" placeholder="e.g. xueqiu.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="contentSelector">Selector:</label>
+                        <input type="text" id="contentSelector" placeholder="e.g. .article-content">
+                    </div>
+                    <button id="addSelector" class="btn-primary">Add Config</button>
+                </div>
+
+                <h3>Tools</h3>
+                <button id="detectSelector" class="btn-secondary">Detect Selector</button>
+
+                <h3>Existing Configs</h3>
+                <div id="configList"></div>
+
+                <h3>Excluded Sites</h3>
+                <div class="config-form">
+                    <div class="form-group">
+                        <input type="text" id="excludeSite" placeholder="e.g. google.com">
+                    </div>
+                    <button id="addExcludedSite" class="btn-secondary">Exclude Site</button>
+                    <div id="excludedSitesList" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="tab-settings" class="tab-content">
+            <div class="config-section">
+                <h3>Application Settings</h3>
+                <div class="config-form">
+                    <div class="form-group">
+                        <label>Auto-Reader URL Patterns:</label>
+                        <textarea id="patterns" style="width:100%; height:60px;"></textarea>
+                    </div>
+                </div>
+
+                <h3>Reader Appearance</h3>
+                <div class="config-form">
+                    <div class="form-group">
+                        <label>Font:</label>
+                        <select id="reader-font-select">
+                            <option value="'Inter', sans-serif">Sans</option>
+                            <option value="'Georgia', serif">Serif</option>
+                            <option value="monospace">Mono</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Base Size (px):</label>
+                        <input type="number" id="reader-size-input" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Default Scheme:</label>
+                        <select id="reader-scheme-select">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="sepia">Sepia</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h3>Scheme Colors</h3>
+                <div class="config-form">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>Light BG:</label>
+                            <input type="color" id="color-light-bg" value="#ffffff">
+                        </div>
+                        <div class="form-group">
+                            <label>Light FG:</label>
+                            <input type="color" id="color-light-fg" value="#333333">
+                        </div>
+                        <div class="form-group">
+                            <label>Dark BG:</label>
+                            <input type="color" id="color-dark-bg" value="#1a1a1a">
+                        </div>
+                        <div class="form-group">
+                            <label>Dark FG:</label>
+                            <input type="color" id="color-dark-fg" value="#d1d1d1">
+                        </div>
+                        <div class="form-group">
+                            <label>Sepia BG:</label>
+                            <input type="color" id="color-sepia-bg" value="#f4ecd8">
+                        </div>
+                        <div class="form-group">
+                            <label>Sepia FG:</label>
+                            <input type="color" id="color-sepia-fg" value="#5b4636">
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Cloud & Backup</h3>
+                <div class="config-form">
+                    <div class="form-group">
+                        <label>Firebase RTDB URL:</label>
+                        <input type="text" id="fb-db-url">
+                    </div>
+                    <div class="form-group">
+                        <label>Storage Bucket:</label>
+                        <input type="text" id="fb-storage-bucket">
+                    </div>
+                    <button id="save-settings" class="btn-primary">Save All Settings</button>
+                    <span id="status" style="display:block; margin-top:5px; font-size:11px; color:green;"></span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="sidepanel.js"></script>
+</body>
+
+</html>

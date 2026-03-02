@@ -1,0 +1,77 @@
+.smart-reader-toolbar {
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.smart-reader-toolbar:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  transform: translateY(-50%) scale(1.02);
+}
+
+.toolbar-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.toolbar-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+}
+
+.toolbar-btn.active {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.toolbar-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  color: #4b5563;
+}
+
+.toolbar-btn:hover svg {
+  color: #3b82f6;
+}
+
+.toolbar-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+  margin: 4px 0;
+}
+
+/* Tippy.js 主题样式 */
+.tippy-box[data-theme~='smart-reader'] {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  color: white;
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.tippy-box[data-theme~='smart-reader'][data-placement^='top'] > .tippy-arrow::before {
+  border-top-color: rgba(0, 0, 0, 0.8);
+}

@@ -1,0 +1,75 @@
+{
+    "manifest_version": 3,
+    "name": "BuboReader - Smart Reader & Note",
+    "version": "1.0",
+    "description": "Powerful reader mode with rich-text notes, cloud sync, and EPUB export.",
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "scripting",
+        "storage",
+        "sidePanel",
+        "contextMenus",
+        "identity"
+    ],
+    "oauth2": {
+        "client_id": "724993324937-9i65tg3thqao2rauodbdf708m80sanq6.apps.googleusercontent.com",
+        "scopes": [
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
+            "https://www.googleapis.com/auth/firebase.database",
+            "https://www.googleapis.com/auth/devstorage.read_write",
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/drive.file"
+        ]
+    },
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "BuboReader"
+    },
+    "side_panel": {
+        "default_path": "sidepanel/sidepanel.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "readability/readability.js",
+                "lib/tiptap.js",
+                "content.js"
+            ],
+            "css": [
+                "lib/tiptap.css",
+                "content.css"
+            ],
+            "run_at": "document_end"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "readability/readability.js",
+                "readability/reader.html",
+                "readability/reader.js",
+                "readability/reader.css",
+                "readability/jszip.min.js",
+                "readability/epub-generator.js",
+                "icons/*"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
+    "icons": {
+        "48": "icons/owl48.png",
+        "128": "icons/owl128.png"
+    }
+}

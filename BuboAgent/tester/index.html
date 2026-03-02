@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuboAgent Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Plus+Jakarta+Sans:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">🦉</div>
+                <h1>Bubo<span>Agent</span></h1>
+            </div>
+
+            <nav class="quick-actions">
+                <h3>Quick Tests</h3>
+                <button class="action-btn" data-template="帮我在 BuboApp 表格里追加一行数据：{日期}, {任务}, {状态}">
+                    <span class="icon">📊</span> Append Sheet
+                </button>
+                <button class="action-btn" data-template="读取 Firebase 路径：/config">
+                    <span class="icon">🔥</span> Read Firebase
+                </button>
+                <button class="action-btn" data-template="列出 Google Drive 里的前 10 个文件">
+                    <span class="icon">📁</span> List Drive
+                </button>
+                <button class="action-btn" data-template="帮我添加一个提醒：2026年3月15日 微软 Q1季报">
+                    <span class="icon">⏰</span> Set Reminder
+                </button>
+                <button class="action-btn" data-template="查询最近的 5 笔交易记录">
+                    <span class="icon">📈</span> Recent Trades
+                </button>
+            </nav>
+
+            <div class="status-card">
+                <div class="status-indicator online"></div>
+                <div class="status-info">
+                    <p class="status-label">Agent Status</p>
+                    <p class="status-text">Connected to :6565</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="chat-header">
+                <h2>Intelligence Terminal</h2>
+                <div class="model-badge">Gemini 2.0 Flash</div>
+            </header>
+
+            <div id="chat-container" class="chat-container">
+                <div class="message system">
+                    <div class="avatar">🤖</div>
+                    <div class="content">
+                        Hello! I am BuboAgent. How can I help you with your data today?
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <form id="chat-form">
+                    <div class="input-wrapper">
+                        <input type="text" id="user-input" placeholder="Type a command (e.g. Append data to sheet...)"
+                            autocomplete="off">
+                        <button type="submit" id="send-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+    <script src="main.js"></script>
+</body>
+
+</html>

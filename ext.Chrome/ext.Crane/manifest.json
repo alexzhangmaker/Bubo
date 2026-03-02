@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "智能阅读助手",
+  "version": "1.0",
+  "description": "提供阅读模式和便捷工具条的浏览器扩展",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "storage",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "exclude_matches": [
+        "https://localhost/*",
+        "http://localhost/*",
+        "https://127.0.0.1/*",
+        "http://127.0.0.1/*",
+        "https://*.google.com/*",
+        "https://google.com/*",
+        "https://*.google.com.hk/*",
+        "https://*.google.co.jp/*",
+        "https://*.baidu.com/*",
+        "https://baidu.com/*",
+        "https://*.chrome.com/*",
+        "https://*.googleusercontent.com/*",
+        "https://alexzhangmaker.github.io/*",
+        "http://192.168.1.120/*"
+      ],
+      "js": [
+        "readability/readability.js",
+        "content-scripts/popper.min.js",
+        "content-scripts/tippy-bundle.umd.min.js",
+        "content-scripts/content.js"
+      ],
+      "css": [
+        "content-scripts/content.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "readability/readability.js",
+        "readability/reader.html",
+        "readability/reader.js",
+        "readability/reader.css",
+        "readability/jszip.min.js",
+        "readability/epub-generator.js",
+        "sidepanel/sidepanel.js",
+        "sidepanel/sidepanel.css",
+        "icons/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_title": "智能阅读助手"
+  },
+  "icons": {
+    "16": "icons/crane32.png",
+    "48": "icons/crane48.png",
+    "128": "icons/crane128.png"
+  }
+}

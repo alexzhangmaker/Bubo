@@ -1,0 +1,693 @@
+/* styles.css */
+
+/* Reader Mode Overlay */
+#webnote-reader-container {
+    --reader-bg: #ecedef;
+    /* Desktop background */
+    --paper-bg: #ffffff;
+    --paper-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --reader-color: #333333;
+    --reader-font: 'Inter', system-ui, -apple-system, sans-serif;
+    --reader-font-size: 18px;
+    --reader-line-height: 1.7;
+    --reader-max-width: 800px;
+    --paper-padding: 60px 80px;
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999999;
+    overflow-y: auto;
+    box-sizing: border-box;
+    font-family: var(--reader-font);
+    line-height: var(--reader-line-height);
+    transition: background-color 0.3s, color 0.3s;
+    background-color: var(--reader-bg);
+    color: var(--reader-color);
+    display: flex;
+    justify-content: center;
+    padding: 0;
+    /* Padding will be on the content/paper */
+}
+
+
+/* Themes / Schemas */
+/* Themes / Schemas - Desk Colors */
+#webnote-reader-container.theme-light {
+    --reader-bg: #ecedef;
+    --paper-bg: #ffffff;
+    --reader-color: #333333;
+}
+
+#webnote-reader-container.theme-sepia {
+    --reader-bg: #e5dac1;
+    --paper-bg: #f4ecd8;
+    --reader-color: #5b4636;
+}
+
+#webnote-reader-container.theme-dark {
+    --reader-bg: #1a1a1a;
+    --paper-bg: #2d2d2d;
+    --reader-color: #e0e0e0;
+}
+
+#webnote-reader-container.theme-paper {
+    --reader-bg: #f0f0f0;
+    --paper-bg: #fdfdfd;
+    --reader-color: #1a1a1b;
+    --reader-font: 'Georgia', serif;
+}
+
+
+.webnote-reader-content-container {
+    max-width: var(--reader-max-width);
+    width: 100%;
+    margin: 40px auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    /* Pagination gap */
+    padding-bottom: 100px;
+}
+
+.webnote-page-card {
+    background: var(--paper-bg);
+    box-shadow: var(--paper-shadow);
+    padding: var(--paper-padding);
+    border-radius: 2px;
+    min-height: 200px;
+    position: relative;
+    transition: background-color 0.3s;
+}
+
+.webnote-reader-content {
+    width: 100%;
+    font-size: var(--reader-font-size);
+}
+
+.webnote-reader-content img {
+    display: block;
+    margin: 2em auto;
+    max-width: 90%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Legacy close reader style removed */
+
+
+/* Sidebar */
+#webnote-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 350px;
+    height: 100vh;
+    background: #f7f7f7;
+    border-left: 1px solid #ccc;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000000;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: transform 0.3s ease;
+}
+
+.webnote-sidebar-header {
+    padding: 15px;
+    background: #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ccc;
+}
+
+.webnote-sidebar-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+#webnote-note-area {
+    flex: 1;
+    padding: 20px;
+    border: none;
+    resize: none;
+    outline: none;
+    font-size: 15px;
+    line-height: 1.5;
+    background: #fff;
+    color: #333;
+}
+
+/* Highlight & Toolbar */
+.webnote-highlight {
+    background-color: #ffeb3b;
+    color: #000;
+}
+
+#webnote-floating-toolbar {
+    position: absolute;
+    z-index: 1000001;
+    background: #333;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: none;
+    transform: translateX(-50%);
+}
+
+#webnote-floating-toolbar:hover {
+    background: #555;
+}
+
+/* Note Cards in Side Panel */
+.note-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 0;
+    /* Remove padding from container to let header/footer touch edges if needed, or keep and adjust */
+    /* Let's keep padding inside but use flex to organize */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s;
+    overflow: hidden;
+    /* For rounded corners */
+}
+
+.note-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.note-header {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.note-title-input {
+    width: 100%;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    color: #202124;
+    background: transparent;
+    outline: none;
+}
+
+.note-title-input:focus {
+    border-bottom: 1px solid #1a73e8;
+}
+
+.note-body {
+    padding: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.note-user-content {
+    min-height: 40px;
+    outline: none;
+    font-size: 14px;
+    color: #333;
+    empty-cells: show;
+}
+
+.note-user-content:empty:before {
+    content: "Add your thoughts...";
+    color: #aaa;
+}
+
+.note-quote {
+    font-size: 13px;
+    color: #5f6368;
+    background: #f1f3f4;
+    border-left: 3px solid #1a73e8;
+    padding: 8px;
+    margin: 0;
+    border-radius: 0 4px 4px 0;
+    font-style: italic;
+    white-space: pre-wrap;
+}
+
+.note-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    /* reduced vertical padding */
+    background: #fff;
+    /* or lighter gray? */
+    border-top: 1px solid #f1f3f4;
+    font-size: 11px;
+    color: #80868b;
+}
+
+.note-actions {
+    display: flex;
+    align-items: center;
+}
+
+.note-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #5f6368;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.note-actions button:hover {
+    background: #f1f3f4;
+    color: #d93025;
+}
+
+/* Floating Toolbar */
+#webnote-floating-toolbar-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 99999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 0;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+#webnote-floating-toolbar-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.webnote-toolbar-btn {
+    background: transparent;
+    border: none;
+    color: #444;
+    cursor: pointer;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    width: 100%;
+    height: 100%;
+}
+
+.webnote-toolbar-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Typography Control Panel */
+/* Removed old .webnote-reader-controls */
+
+/* Summary Editor */
+#webnote-summary-editor-container {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 450px;
+    max-height: 500px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    z-index: 2147483646;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.webnote-summary-header {
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.webnote-summary-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+}
+
+#webnote-close-summary-editor {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #999;
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+#webnote-close-summary-editor:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+.webnote-summary-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+#webnote-sync-summary {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    color: #5f6368;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+#webnote-sync-summary:hover {
+    background-color: #e8f0fe;
+    color: #1a73e8;
+}
+
+#webnote-sync-summary svg {
+    width: 20px;
+    height: 20px;
+}
+
+#webnote-close-summary-editor:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+#webnote-summary-editor {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    min-height: 200px;
+    max-height: 440px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+}
+
+/* Vertical Reader Bar */
+.webnote-reader-vertical-bar {
+    position: fixed;
+    top: 60px;
+    right: calc(50% - (var(--reader-max-width) / 2) - 100px);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0;
+    background: transparent;
+    z-index: 1000000;
+}
+
+/* Adjust for smaller screens */
+@media (max-width: 1100px) {
+    .webnote-reader-vertical-bar {
+        right: 20px;
+    }
+}
+
+.webnote-vertical-btn {
+    background: transparent;
+    border: none;
+    color: var(--reader-color);
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    width: 40px;
+    height: 40px;
+    opacity: 0.6;
+}
+
+.webnote-vertical-btn:hover {
+    opacity: 1;
+    color: #1a73e8;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+#webnote-reader-container.theme-dark .webnote-vertical-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.webnote-vertical-btn svg {
+    width: 22px;
+    height: 22px;
+    color: currentColor;
+}
+
+.webnote-vertical-sep {
+    height: 1px;
+    width: 24px;
+    background: var(--reader-color);
+    opacity: 0.1;
+    margin: 4px auto;
+}
+
+.webnote-vertical-themes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    background: var(--reader-bg);
+    padding: 8px 4px;
+    border-radius: 20px;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.webnote-vertical-themes:hover {
+    opacity: 1;
+}
+
+.webnote-schema-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s;
+}
+
+.webnote-schema-dot:hover {
+    transform: scale(1.2);
+}
+
+.webnote-schema-dot.active {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+#webnote-save-lib,
+#webnote-close-reader {
+    color: var(--reader-color);
+}
+
+
+/* Aggressive overrides for headings and blocks */
+#webnote-summary-editor-container .bn-editor h1,
+#webnote-summary-editor h1 {
+    font-size: 1.3em !important;
+    margin: 0.3em 0 !important;
+    font-weight: 700 !important;
+}
+
+#webnote-summary-editor-container .bn-editor h2,
+#webnote-summary-editor h2 {
+    font-size: 1.2em !important;
+    margin: 0.3em 0 !important;
+    font-weight: 600 !important;
+}
+
+#webnote-summary-editor-container .bn-editor h3,
+#webnote-summary-editor h3 {
+    font-size: 1.1em !important;
+    margin: 0.3em 0 !important;
+    font-weight: 600 !important;
+}
+
+#webnote-summary-editor-container .bn-editor p,
+#webnote-summary-editor p {
+    font-size: 13px !important;
+    margin: 0.4em 0 !important;
+    line-height: 1.4 !important;
+}
+
+#webnote-summary-editor ul,
+#webnote-summary-editor ol {
+    padding-left: 1.2em !important;
+    font-size: 13px !important;
+}
+
+#webnote-summary-editor blockquote {
+    border-left: 4px solid #ddd;
+    padding-left: 1em;
+    color: #666;
+    font-style: italic;
+}
+
+/* Settings Modal */
+#webnote-settings-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 2000000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.webnote-settings-modal {
+    background: #ffffff;
+    width: 400px;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #333;
+}
+
+.webnote-settings-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.webnote-settings-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+#webnote-close-settings {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #999;
+}
+
+.webnote-settings-modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settings-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.settings-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.webnote-modal-btn {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    background: #fcfcfc;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    flex: 1;
+    text-align: center;
+}
+
+.webnote-modal-btn:hover {
+    background: #f0f0f0;
+    border-color: #ccc;
+}
+
+.webnote-modal-btn.active {
+    background: #1a73e8;
+    color: #fff;
+    border-color: #1a73e8;
+}
+
+.theme-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.theme-preview-item {
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.theme-preview-item:hover {
+    transform: scale(1.05);
+}
+
+.theme-preview-item.active {
+    border-color: #1a73e8;
+}
+
+.note-card.active-sync {
+    border-left: 4px solid #1a73e8 !important;
+    background-color: rgba(26, 115, 232, 0.05) !important;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

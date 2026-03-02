@@ -1,0 +1,1758 @@
+class ReaderApp {
+    constructor() {
+        this.currentTheme = 'light';
+        this.notes = [];
+        this.highlights = [];
+        this.isContentLoaded = false;
+        this.currentFontSize = 18;
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.setupHeaderEvents();
+        this.setupTippy();
+        this.loadContent();
+        this.loadSavedData();
+    }
+
+    setupHeaderEvents() {
+        const backBtn = document.getElementById('backBtn');
+        const toggleSidebarBtn = document.getElementById('toggleSidebar');
+        const sidebar = document.getElementById('readerSidebar');
+
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                window.history.back();
+            });
+        }
+
+        if (toggleSidebarBtn && sidebar) {
+            toggleSidebarBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('noShow');
+            });
+        }
+    }
+
+    setupEventListeners() {
+        // 字体大小设置
+        const fontSizeSlider = document.getElementById('fontSize');
+        const fontSizeValue = document.getElementById('fontSizeValue');
+        
+        if (fontSizeSlider && fontSizeValue) {
+            fontSizeSlider.addEventListener('input', (e) => {
+                const size = parseInt(e.target.value);
+                this.currentFontSize = size;
+                fontSizeValue.textContent = `${size}px`;
+                const contentElement = document.getElementById('articleContent');
+                if (contentElement) {
+                    contentElement.style.fontSize = `${size}px`;
+                }
+                this.saveSetting('fontSize', size);
+            });
+        }
+
+        // 字体族设置
+        const fontFamilySelect = document.getElementById('fontFamily');
+        if (fontFamilySelect) {
+            fontFamilySelect.addEventListener('change', (e) => {
+                const contentElement = document.getElementById('articleContent');
+                if (contentElement) {
+                    contentElement.style.fontFamily = e.target.value;
+                }
+                this.saveSetting('fontFamily', e.target.value);
+            });
+        }
+
+        // 行高设置
+        const lineHeightSlider = document.getElementById('lineHeight');
+        const lineHeightValue = document.getElementById('lineHeightValue');
+        
+        if (lineHeightSlider && lineHeightValue) {
+            lineHeightSlider.addEventListener('input', (e) => {
+                const height = e.target.value;
+                lineHeightValue.textContent = height;
+                const contentElement = document.getElementById('articleContent');
+                if (contentElement) {
+                    contentElement.style.lineHeight = height;
+                }
+                this.saveSetting('lineHeight', height);
+            });
+        }
+
+        // 内容宽度设置
+        const contentWidthSlider = document.getElementById('contentWidth');
+        const contentWidthValue = document.getElementById('contentWidthValue');
+        
+        if (contentWidthSlider && contentWidthValue) {
+            contentWidthSlider.addEventListener('input', (e) => {
+                const width = e.target.value;
+                contentWidthValue.textContent = `${width}px`;
+                const contentElement = document.querySelector('.article-main');
+                if (contentElement) {
+                    contentElement.style.maxWidth = `${width}px`;
+                }
+                this.saveSetting('contentWidth', width);
+            });
+        }
+
+        // 主题切换
+        const themeButtons = document.querySelectorAll('.theme-option');
+        if (themeButtons.length > 0) {
+            themeButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const theme = e.currentTarget.dataset.theme;
+                    this.switchTheme(theme);
+                    
+                    // 更新按钮状态
+                    themeButtons.forEach(b => b.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                });
+            });
+        }
+
+        // 工具按钮
+        const highlightBtn = document.getElementById('highlight');
+        if (highlightBtn) {
+            highlightBtn.addEventListener('click', () => {
+                this.toggleHighlight();
+            });
+        }
+
+        const addNoteBtn = document.getElementById('addNote');
+        if (addNoteBtn) {
+            addNoteBtn.addEventListener('click', () => {
+                this.addNote();
+            });
+        }
+
+        const fontIncreaseBtn = document.getElementById('fontIncrease');
+        if (fontIncreaseBtn) {
+            fontIncreaseBtn.addEventListener('click', () => {
+                this.adjustFontSize(1);
+            });
+        }
+
+        const fontDecreaseBtn = document.getElementById('fontDecrease');
+        if (fontDecreaseBtn) {
+            fontDecreaseBtn.addEventListener('click', () => {
+                this.adjustFontSize(-1);
+            });
+        }
+
+        // 文本选择事件
+        document.addEventListener('selectionchange', this.handleSelectionChange.bind(this));
+
+        // 键盘快捷键
+        document.addEventListener('keydown', this.handleKeyboardShortcuts.bind(this));
+
+        // 保存按钮
+        const saveArticleBtn = document.getElementById('saveArticle');
+        if (saveArticleBtn) {
+            saveArticleBtn.addEventListener('click', () => {
+                this.saveArticle();
+            });
+        }
+
+        // ePub导出按钮
+        const ePubArticleBtn = document.getElementById('saveePub');
+        if (ePubArticleBtn) {
+            ePubArticleBtn.addEventListener('click', async () => {
+                await this.exportToEPUB();
+            });
+        }
+
+        // 分享按钮
+        const shareArticleBtn = document.getElementById('shareArticle');
+        if (shareArticleBtn) {
+            shareArticleBtn.addEventListener('click', () => {
+                this.shareArticle();
+            });
+        }
+
+        // ePub导出按钮（设置面板）
+        const exportEpubBtn = document.getElementById('exportEpub');
+        if (exportEpubBtn) {
+            exportEpubBtn.addEventListener('click', async () => {
+                await this.exportToEPUB();
+            });
+        }
+    }
+
+    setupTippy() {
+        if (typeof tippy !== 'undefined') {
+            // 工具按钮提示
+            const toolBtns = document.querySelectorAll('.tool-btn');
+            if (toolBtns.length > 0) {
+                tippy('.tool-btn', {
+                    theme: 'smart-reader',
+                    placement: 'left',
+                    arrow: true,
+                    delay: [100, 50]
+                });
+            }
+
+            // 头部按钮提示
+            const headerBtns = document.querySelectorAll('.header-btn');
+            if (headerBtns.length > 0) {
+                tippy('.header-btn', {
+                    theme: 'smart-reader',
+                    placement: 'bottom',
+                    arrow: true
+                });
+            }
+
+            // 设置项提示
+            const fontSizeSlider = document.getElementById('fontSize');
+            if (fontSizeSlider) {
+                tippy('#fontSize', {
+                    theme: 'smart-reader',
+                    placement: 'top',
+                    arrow: true,
+                    content: '调整字体大小'
+                });
+            }
+
+            const lineHeightSlider = document.getElementById('lineHeight');
+            if (lineHeightSlider) {
+                tippy('#lineHeight', {
+                    theme: 'smart-reader',
+                    placement: 'top',
+                    arrow: true,
+                    content: '调整行高'
+                });
+            }
+        }
+    }
+
+    // 调整字体大小
+    adjustFontSize(delta) {
+        const newSize = Math.max(12, Math.min(30, this.currentFontSize + delta));
+        this.currentFontSize = newSize;
+        
+        const contentElement = document.getElementById('articleContent');
+        if (contentElement) {
+            contentElement.style.fontSize = `${newSize}px`;
+        }
+        
+        // 更新滑块值
+        const fontSizeSlider = document.getElementById('fontSize');
+        const fontSizeValue = document.getElementById('fontSizeValue');
+        if (fontSizeSlider && fontSizeValue) {
+            fontSizeSlider.value = newSize;
+            fontSizeValue.textContent = `${newSize}px`;
+        }
+        
+        this.saveSetting('fontSize', newSize);
+        this.showNotification(`字体大小: ${newSize}px`);
+    }
+
+    loadContent() {
+        // 先检查URL参数中的内容
+        this.checkURLForContent();
+        
+        // 然后监听来自background script的消息
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.action === 'loadContent') {
+                this.displayArticle(request.content, request.url);
+                sendResponse({ success: true });
+            }
+            return true;
+        });
+    }
+
+    checkURLForContent() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const contentParam = urlParams.get('content');
+            
+            if (contentParam) {
+                // 先尝试直接解码，如果失败则使用备用方法
+                let content;
+                try {
+                    content = JSON.parse(decodeURIComponent(contentParam));
+                } catch (decodeError) {
+                    console.warn('直接解码失败，尝试备用解码方法:', decodeError);
+                    // 备用解码方法
+                    content = JSON.parse(contentParam);
+                }
+                
+                if (content) {
+                    this.displayArticle(content, window.location.href);
+                }
+            }
+        } catch (error) {
+            console.error('解析URL内容失败:', error);
+            this.showErrorMessage('加载内容失败，请返回原页面重试');
+        }
+    }
+
+    displayArticle(article, url) {
+        if (!article) {
+            this.showErrorMessage('无法获取文章内容');
+            return;
+        }
+
+        try {
+            // 设置文章标题和元数据
+            const titleElement = document.getElementById('articleTitle');
+            const siteElement = document.getElementById('articleSite');
+            const lengthElement = document.getElementById('articleLength');
+            const wordCountElement = document.getElementById('wordCount');
+            const contentElement = document.getElementById('articleContent');
+
+            if (!titleElement || !siteElement || !lengthElement || !contentElement) {
+                console.error('必要的DOM元素未找到');
+                this.showErrorMessage('页面加载不完整，请刷新重试');
+                return;
+            }
+
+            titleElement.textContent = article.title || '无标题';
+            
+            const siteName = article.siteName || (url ? new URL(url).hostname : '未知来源');
+            siteElement.textContent = siteName;
+            
+            // 计算阅读时间和字数
+            const textContent = article.textContent || 
+                               (article.content ? this.stripHTML(article.content) : '');
+            const wordCount = textContent.split(/\s+/).length;
+            const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+            
+            lengthElement.textContent = `约 ${readingTime} 分钟阅读`;
+            if (wordCountElement) {
+                wordCountElement.textContent = `${wordCount} 字`;
+            }
+
+            // 设置文章内容
+            if (article.content) {
+                contentElement.innerHTML = article.content;
+            } else if (article.textContent) {
+                contentElement.innerHTML = '';
+                const paragraphs = article.textContent.split('\n\n');
+                paragraphs.forEach(paragraph => {
+                    if (paragraph.trim()) {
+                        const p = document.createElement('p');
+                        p.textContent = paragraph.trim();
+                        contentElement.appendChild(p);
+                    }
+                });
+            } else {
+                contentElement.innerHTML = '<p>内容加载失败</p>';
+            }
+
+            this.isContentLoaded = true;
+
+            // 应用保存的设置
+            this.applySavedSettings();
+
+            // 生成目录
+            this.generateTOC();
+
+            // 恢复之前的高亮
+            this.restoreHighlights();
+
+            console.log('文章加载完成');
+
+        } catch (error) {
+            console.error('显示文章内容失败:', error);
+            this.showErrorMessage('处理内容时发生错误');
+        }
+    }
+
+    // 生成目录
+    generateTOC() {
+        const headings = document.querySelectorAll('#articleContent h1, #articleContent h2, #articleContent h3');
+        const tocContainer = document.getElementById('tocContainer');
+        
+        if (!tocContainer || headings.length === 0) {
+            if (tocContainer) {
+                tocContainer.innerHTML = '<div class="empty-toc">暂无目录</div>';
+            }
+            return;
+        }
+
+        let tocHTML = '';
+        headings.forEach((heading, index) => {
+            const level = parseInt(heading.tagName.substring(1));
+            const indent = (level - 1) * 16;
+            const id = `heading-${index}`;
+            
+            heading.id = id;
+            
+            tocHTML += `
+                <div class="toc-item" style="padding-left: ${indent}px" data-target="${id}">
+                    ${heading.textContent}
+                </div>
+            `;
+        });
+
+        tocContainer.innerHTML = tocHTML;
+
+        // 添加目录点击事件
+        tocContainer.querySelectorAll('.toc-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const targetId = item.getAttribute('data-target');
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                    
+                    // 高亮当前目录项
+                    tocContainer.querySelectorAll('.toc-item').forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // 监听滚动，自动高亮当前章节
+        this.setupTOCScrollListener(headings, tocContainer);
+    }
+
+    setupTOCScrollListener(headings, tocContainer) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.id;
+                    const tocItem = tocContainer.querySelector(`[data-target="${id}"]`);
+                    if (tocItem) {
+                        tocContainer.querySelectorAll('.toc-item').forEach(i => i.classList.remove('active'));
+                        tocItem.classList.add('active');
+                    }
+                }
+            });
+        }, {
+            rootMargin: '-20% 0px -60% 0px',
+            threshold: 0
+        });
+
+        headings.forEach(heading => {
+            observer.observe(heading);
+        });
+    }
+
+    stripHTML(html) {
+        if (!html) return '';
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || '';
+    }
+
+    switchTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        this.currentTheme = theme;
+        this.saveSetting('theme', theme);
+        this.showNotification(`已切换到${this.getThemeName(theme)}主题`);
+    }
+
+    getThemeName(theme) {
+        const themeNames = {
+            'light': '浅色',
+            'dark': '深色',
+            'sepia': '护眼'
+        };
+        return themeNames[theme] || theme;
+    }
+
+    /**
+     * 导出为ePub文件
+     */
+    async exportToEPUB() {
+        if (!this.isContentLoaded) {
+            this.showNotification('请等待内容加载完成');
+            return;
+        }
+
+        const titleElement = document.getElementById('articleTitle');
+        const contentElement = document.getElementById('articleContent');
+        
+        if (!titleElement || !contentElement) {
+            this.showNotification('无法保存文章');
+            return;
+        }
+
+        const articleTitle = titleElement.textContent;
+        const articleContent = contentElement.innerHTML;
+        
+        const exportBtn = document.getElementById('exportEpub');
+        const originalText = exportBtn.innerHTML;
+        
+        try {
+            // 显示加载状态
+            exportBtn.innerHTML = '生成中...';
+            exportBtn.disabled = true;
+
+            // 创建ePub生成器实例
+            const epubGenerator = new EPUBGenerator();
+            
+            // 准备文章数据
+            const articleData = {
+                title: articleTitle || '未知标题',
+                content: articleContent || '',
+                url: window.location.href,
+                site: new URL(window.location.href).hostname
+            };
+
+            // 生成ePub文件
+            const epubBlob = await epubGenerator.generateEPUB(articleData);
+            
+            // 询问用户如何处理ePub文件
+            const userChoice = await this.showEPUBChoiceDialog();
+            
+            if (userChoice === 'upload') {
+                // 上传到小米电子书
+                await this.uploadToMiReaderDevice(epubBlob, articleData.title);
+            } else if (userChoice === 'download') {
+                // 下载到本地
+                this.downloadEPUB(epubBlob, articleData.title);
+            } else {
+                this.showNotification('操作已取消');
+            }
+
+        } catch (error) {
+            console.error('导出ePub失败:', error);
+            this.showNotification('导出ePub失败: ' + error.message);
+        } finally {
+            // 恢复按钮状态
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+        }
+    }
+
+    /**
+     * 显示ePub处理选择对话框
+     */
+    async showEPUBChoiceDialog() {
+        return new Promise((resolve) => {
+            const dialog = document.createElement('div');
+            dialog.className = 'epub-choice-dialog';
+            dialog.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+
+            dialog.innerHTML = `
+                <div style="
+                    background: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                    max-width: 400px;
+                    width: 90%;
+                    text-align: center;
+                ">
+                    <h3 style="margin: 0 0 20px 0; color: #333;">ePub文件生成成功！</h3>
+                    <p style="margin: 0 0 25px 0; color: #666; line-height: 1.5;">
+                        请选择如何处理生成的ePub文件：
+                    </p>
+                    <div style="display: flex; gap: 12px; justify-content: center;">
+                        <button id="uploadChoice" style="
+                            padding: 12px 24px;
+                            background: #007cba;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            flex: 1;
+                        ">📱 发送到电子书</button>
+                        <button id="downloadChoice" style="
+                            padding: 12px 24px;
+                            background: #28a745;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            flex: 1;
+                        ">💾 下载到本地</button>
+                    </div>
+                    <button id="cancelChoice" style="
+                        margin-top: 15px;
+                        padding: 8px 16px;
+                        background: transparent;
+                        color: #666;
+                        border: 1px solid #ddd;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 13px;
+                    ">取消</button>
+                </div>
+            `;
+
+            document.body.appendChild(dialog);
+
+            // 添加事件监听器
+            dialog.querySelector('#uploadChoice').addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                resolve('upload');
+            });
+
+            dialog.querySelector('#downloadChoice').addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                resolve('download');
+            });
+
+            dialog.querySelector('#cancelChoice').addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                resolve('cancel');
+            });
+        });
+    }
+
+    /**
+     * 上传ePub到小米电子书设备
+     */
+    async uploadToMiReaderDevice(epubBlob, title) {
+        let progressDialog = null;
+        
+        try {
+            // 获取设备基础URL
+            const baseUrl = await this.getMiReaderDeviceUrl();
+            
+            if (!baseUrl) {
+                this.showNotification('未配置电子书设备地址');
+                return;
+            }
+
+            // 显示上传进度
+            progressDialog = this.showUploadProgressDialog();
+            
+            // 创建文件名
+            const fileName = `${this.sanitizeFileName(title)}_${Date.now()}.epub`;
+            
+            // 使用智能CORS上传（优先使用本地代理）
+            this.updateUploadProgress(progressDialog, { percent: 10, loaded: 0, total: 100 });
+            this.showNotification('正在连接到设备...');
+            
+            const result = await this.smartCorsUpload(epubBlob, fileName, baseUrl);
+            this.updateUploadProgress(progressDialog, { percent: 100, loaded: 100, total: 100 });
+            
+            // 保存成功的URL供以后使用
+            await this.saveSetting('miReaderDeviceUrl', baseUrl);
+            
+            this.showNotification(`✅ 已成功发送到电子书设备！\n文件: ${fileName}`);
+            
+        } catch (error) {
+            console.error('上传到电子书失败:', error);
+            this.showDetailedUploadError(error);
+        } finally {
+            if (progressDialog) {
+                this.closeUploadProgressDialog(progressDialog);
+            }
+        }
+    }
+
+    /**
+     * 智能CORS上传控制器
+     */
+    async smartCorsUpload(epubBlob, fileName, baseUrl) {
+        console.log('开始智能CORS上传...');
+        
+        const methods = [
+            { name: 'local-proxy', func: () => this.uploadWithLocalProxy(epubBlob, fileName, baseUrl) },
+            { name: 'chrome-background', func: () => this.uploadWithBackgroundPage(epubBlob, fileName, baseUrl) },
+            { name: 'xhr', func: () => this.uploadWithXHR(epubBlob, fileName, baseUrl) },
+            { name: 'public-proxy', func: () => this.uploadWithPublicProxy(epubBlob, fileName, baseUrl) }
+        ];
+        
+        const results = [];
+        
+        for (const method of methods) {
+            try {
+                console.log(`尝试方法: ${method.name}`);
+                const result = await method.func();
+                results.push({
+                    method: method.name,
+                    success: true,
+                    result: result
+                });
+                console.log(`✅ ${method.name}: 成功`);
+                return result;
+            } catch (error) {
+                results.push({
+                    method: method.name,
+                    success: false,
+                    error: error.message
+                });
+                console.log(`❌ ${method.name}: ${error.message}`);
+                // 继续尝试下一个方法
+            }
+        }
+        
+        // 所有方法都失败
+        console.log('所有CORS绕过方法都失败:', results);
+        throw new Error('所有上传方法都失败，请尝试手动上传');
+    }
+/**
+ * 方法1: 使用本地CORS代理上传（首选）
+ */
+async uploadWithLocalProxy(epubBlob, fileName, baseUrl) {
+    const localProxyUrls = [
+        'http://localhost:3000/proxy/upload',
+        'http://127.0.0.1:3000/proxy/upload',
+        'http://localhost:3001/proxy/upload',
+        'http://127.0.0.1:3001/proxy/upload'
+    ];
+    
+    // 首先测试连接
+    const testResults = await this.testProxyConnections(localProxyUrls, baseUrl);
+    const workingProxy = testResults.find(result => result.success);
+    
+    if (!workingProxy) {
+        throw new Error('没有可用的代理服务器，请确保代理服务正在运行');
+    }
+    
+    const proxyUrl = workingProxy.url;
+    
+    try {
+        console.log(`使用代理: ${proxyUrl}`);
+        console.log(`目标地址: ${baseUrl}/files`);
+        console.log(`文件名: ${fileName}`);
+        
+        const formData = new FormData();
+        formData.append('file', epubBlob, fileName);
+        formData.append('targetUrl', `${baseUrl}files`); // 确保格式正确
+        
+        const response = await fetch(proxyUrl, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            console.log('本地代理上传成功:', result);
+            return {
+                success: true,
+                method: 'local-proxy',
+                proxyUrl: proxyUrl,
+                response: result
+            };
+        } else {
+            throw new Error(result.error || `代理返回错误: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('代理上传失败:', error);
+        throw new Error(`代理上传失败: ${error.message}`);
+    }
+}
+
+/**
+ * 测试代理服务器连接
+ */
+async testProxyConnections(proxyUrls, baseUrl) {
+    const results = [];
+    
+    for (const proxyUrl of proxyUrls) {
+        try {
+            console.log(`测试代理: ${proxyUrl}`);
+            
+            // 测试健康检查
+            const healthUrl = proxyUrl.replace('/proxy/upload', '/health');
+            const healthResponse = await fetch(healthUrl, { 
+                method: 'GET',
+                timeout: 3000 
+            });
+            
+            if (!healthResponse.ok) {
+                results.push({ url: proxyUrl, success: false, error: '健康检查失败' });
+                continue;
+            }
+            
+            // 测试目标服务器连接
+            const testUrl = proxyUrl.replace('/proxy/upload', '/proxy/test');
+            const testResponse = await fetch(testUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    targetUrl: `${baseUrl}/files`
+                })
+            });
+            
+            const testResult = await testResponse.json();
+            
+            if (testResponse.ok && testResult.success) {
+                results.push({ 
+                    url: proxyUrl, 
+                    success: true, 
+                    message: '连接测试成功' 
+                });
+            } else {
+                results.push({ 
+                    url: proxyUrl, 
+                    success: false, 
+                    error: testResult.error || '连接测试失败' 
+                });
+            }
+            
+        } catch (error) {
+            console.log(`代理 ${proxyUrl} 测试失败:`, error.message);
+            results.push({ 
+                url: proxyUrl, 
+                success: false, 
+                error: error.message 
+            });
+        }
+    }
+    
+    return results;
+}
+
+/**
+ * 诊断上传问题
+ */
+async diagnoseUploadIssue(baseUrl) {
+    console.log('开始诊断上传问题...');
+    
+    // 测试直接连接
+    try {
+        const testUrl = `${baseUrl}/files`;
+        console.log(`测试直接连接: ${testUrl}`);
+        
+        const response = await fetch(testUrl, {
+            method: 'GET',
+            mode: 'no-cors'
+        });
+        
+        console.log('直接连接测试完成');
+    } catch (error) {
+        console.log('直接连接失败:', error.message);
+    }
+    
+    // 测试代理连接
+    const proxyUrls = [
+        'http://localhost:3000/proxy/upload',
+        'http://127.0.0.1:3000/proxy/upload'
+    ];
+    
+    for (const proxyUrl of proxyUrls) {
+        try {
+            const healthUrl = proxyUrl.replace('/proxy/upload', '/health');
+            const response = await fetch(healthUrl);
+            if (response.ok) {
+                console.log(`✅ 代理服务器 ${proxyUrl} 可用`);
+            }
+        } catch (error) {
+            console.log(`❌ 代理服务器 ${proxyUrl} 不可用:`, error.message);
+        }
+    }
+}
+    /**
+     * 方法2: 使用Chrome扩展后台页上传
+     */
+    async uploadWithBackgroundPage(epubBlob, fileName, baseUrl) {
+        return new Promise((resolve, reject) => {
+            // 将Blob转换为ArrayBuffer
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    // 发送到后台脚本处理
+                    const response = await chrome.runtime.sendMessage({
+                        action: 'uploadToDevice',
+                        fileData: e.target.result,
+                        fileName: fileName,
+                        deviceUrl: `${baseUrl}/files`,
+                        mimeType: 'application/epub+zip'
+                    });
+                    
+                    if (response.success) {
+                        resolve({
+                            success: true,
+                            method: 'background-page',
+                            response: response.data
+                        });
+                    } else {
+                        reject(new Error(response.error));
+                    }
+                } catch (error) {
+                    reject(new Error(`后台页上传失败: ${error.message}`));
+                }
+            };
+            reader.onerror = () => reject(new Error('文件读取失败'));
+            reader.readAsArrayBuffer(epubBlob);
+        });
+    }
+
+    /**
+     * 方法3: 使用XHR传统方法
+     */
+    async uploadWithXHR(epubBlob, fileName, baseUrl) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            const uploadUrl = `${baseUrl}/files`;
+            const formData = new FormData();
+            formData.append('newfile', epubBlob, fileName);
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        resolve({
+                            success: true,
+                            method: 'xhr',
+                            status: xhr.status,
+                            response: xhr.responseText
+                        });
+                    } else if (xhr.status === 0) {
+                        // status为0可能是CORS阻止，但也可能是成功
+                        resolve({
+                            success: true, 
+                            method: 'xhr',
+                            status: 0,
+                            message: '请求已发送（可能被CORS阻止读取响应）'
+                        });
+                    } else {
+                        reject(new Error(`XHR上传失败: ${xhr.status}`));
+                    }
+                }
+            };
+            
+            xhr.onerror = function() {
+                reject(new Error('XHR网络错误'));
+            };
+            
+            xhr.ontimeout = function() {
+                reject(new Error('XHR上传超时'));
+            };
+            
+            xhr.open('POST', uploadUrl, true);
+            xhr.timeout = 30000;
+            xhr.send(formData);
+        });
+    }
+
+    /**
+     * 方法4: 使用公共CORS代理
+     */
+    async uploadWithPublicProxy(epubBlob, fileName, baseUrl) {
+        const publicProxies = [
+            'https://cors-anywhere.herokuapp.com/',
+            'https://api.codetabs.com/v1/proxy?quest=',
+            'https://corsproxy.io/?',
+            'https://proxy.cors.sh/'
+        ];
+        
+        for (const proxy of publicProxies) {
+            try {
+                console.log(`尝试公共代理: ${proxy}`);
+                const targetUrl = `${baseUrl}/files`;
+                const proxyUrl = proxy + encodeURIComponent(targetUrl);
+                
+                const formData = new FormData();
+                formData.append('newfile', epubBlob, fileName);
+                
+                const response = await fetch(proxyUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.text();
+                    return {
+                        success: true,
+                        method: 'public-proxy',
+                        proxy: proxy,
+                        response: result
+                    };
+                }
+            } catch (error) {
+                console.log(`代理 ${proxy} 失败:`, error.message);
+                continue;
+            }
+        }
+        
+        throw new Error('所有公共代理都失败');
+    }
+
+    /**
+     * 显示上传进度对话框
+     */
+    showUploadProgressDialog() {
+        const dialog = document.createElement('div');
+        dialog.className = 'upload-progress-dialog';
+        dialog.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+
+        dialog.innerHTML = `
+            <div style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                max-width: 400px;
+                width: 90%;
+                text-align: center;
+            ">
+                <h3 style="margin: 0 0 20px 0; color: #333;">正在发送到电子书...</h3>
+                <div style="
+                    background: #f0f0f0;
+                    border-radius: 10px;
+                    height: 20px;
+                    margin: 20px 0;
+                    overflow: hidden;
+                ">
+                    <div id="uploadProgressBar" style="
+                        background: linear-gradient(90deg, #007cba, #00a8ff);
+                        height: 100%;
+                        width: 0%;
+                        transition: width 0.3s ease;
+                        border-radius: 10px;
+                    "></div>
+                </div>
+                <div id="uploadProgressText" style="
+                    font-size: 14px;
+                    color: #666;
+                    margin-bottom: 10px;
+                ">0%</div>
+                <div style="font-size: 12px; color: #999;">请确保电子书设备在同一WiFi网络中</div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+        return dialog;
+    }
+
+    /**
+     * 更新上传进度
+     */
+    updateUploadProgress(dialog, progress) {
+        const progressBar = dialog.querySelector('#uploadProgressBar');
+        const progressText = dialog.querySelector('#uploadProgressText');
+        
+        if (progressBar && progressText) {
+            progressBar.style.width = `${progress.percent}%`;
+            const loaded = progress.loaded || 0;
+            const total = progress.total || 100;
+            progressText.textContent = `${progress.percent}% (${this.formatFileSize(loaded)} / ${this.formatFileSize(total)})`;
+        }
+    }
+
+    /**
+     * 关闭上传进度对话框
+     */
+    closeUploadProgressDialog(dialog) {
+        if (dialog && dialog.parentNode) {
+            document.body.removeChild(dialog);
+        }
+    }
+
+    /**
+     * 显示详细上传错误信息
+     */
+    showDetailedUploadError(error) {
+        let message = '上传失败！\n\n';
+        
+        if (error.message.includes('CORS') || error.message.includes('代理')) {
+            message += `❌ CORS阻止了文件上传\n\n`;
+            message += `解决方案:\n`;
+            message += `1. 使用本地CORS代理（推荐）\n`;
+            message += `2. 手动上传文件\n`;
+            message += `3. 配置电子书设备启用CORS\n\n`;
+            
+            // 显示代理设置按钮
+            const useProxy = confirm(`${message}\n是否设置本地CORS代理？`);
+            if (useProxy) {
+                this.showProxySetupInstructions();
+            }
+        } else if (error.message.includes('网络错误') || error.message.includes('超时')) {
+            message += `❌ 网络连接失败\n\n`;
+            message += `可能的原因:\n`;
+            message += `1. 设备不在线\n`;
+            message += `2. 网络防火墙阻止\n`;
+            message += `3. 端口被占用\n\n`;
+            message += `解决方案:\n`;
+            message += `• 检查设备WiFi连接\n`;
+            message += `• 暂时关闭防火墙\n`;
+            message += `• 重启路由器和设备\n`;
+            
+            alert(message);
+        } else {
+            message += `❌ ${error.message}\n\n`;
+            message += `请检查设备连接和设置。`;
+            alert(message);
+        }
+    }
+
+    /**
+     * 显示代理设置指导
+     */
+    showProxySetupInstructions() {
+        const instructions = `
+🔧 本地CORS代理设置指南：
+
+步骤1 - 安装Node.js:
+• 访问 https://nodejs.org 下载安装
+
+步骤2 - 创建代理服务器文件:
+1. 创建新文件夹: mkdir cors-proxy && cd cors-proxy
+2. 创建 package.json 文件
+3. 创建 proxy-server.js 文件
+4. 运行: npm install
+5. 启动: npm start
+
+步骤3 - 测试代理:
+• 访问 http://localhost:3000/health
+• 应该看到 {"status":"ok"}
+
+步骤4 - 重新尝试上传:
+• 代理运行后，重新尝试上传功能
+
+需要帮助？请查看控制台获取详细错误信息。
+        `;
+        
+        alert(instructions);
+        
+        // 可选：在控制台输出更详细的设置信息
+        console.log(`
+🎯 本地CORS代理详细设置:
+
+1. 创建 package.json:
+{
+  "name": "cors-proxy",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "scripts": {
+    "start": "node proxy-server.js"
+  }
+}
+
+2. 创建 proxy-server.js:
+const express = require('express');
+const cors = require('cors');
+const app = express();
+app.use(cors());
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+app.listen(3000, () => {
+  console.log('CORS代理运行在端口3000');
+});
+        `);
+    }
+
+    /**
+     * 获取小米电子书设备URL
+     */
+    async getMiReaderDeviceUrl() {
+        try {
+            // 首先尝试从存储中获取保存的设备地址
+            const settings = await chrome.storage.local.get(['miReaderDeviceUrl']);
+            
+            if (settings.miReaderDeviceUrl) {
+                return settings.miReaderDeviceUrl;
+            }
+
+            // 手动输入
+            return await this.promptForDeviceUrl();
+            
+        } catch (error) {
+            console.error('获取设备URL失败:', error);
+            return await this.promptForDeviceUrl();
+        }
+    }
+
+    /**
+     * 提示用户输入设备URL
+     */
+    async promptForDeviceUrl() {
+        return new Promise((resolve) => {
+            const defaultUrl = 'http://192.168.1.124:12121';
+            const userUrl = prompt('请输入电子书设备的WiFi传书地址:', defaultUrl);
+            
+            if (userUrl && this.isValidDeviceUrl(userUrl)) {
+                resolve(userUrl);
+            } else if (userUrl) {
+                alert('请输入有效的URL地址（例如：http://192.168.1.100）');
+                resolve(this.promptForDeviceUrl()); // 重新提示
+            } else {
+                resolve(null);
+            }
+        });
+    }
+
+    /**
+     * 验证设备URL格式
+     */
+    isValidDeviceUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * 格式化文件大小
+     */
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
+     * 清理文件名中的非法字符
+     */
+    sanitizeFileName(name) {
+        return name.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100);
+    }
+
+    /**
+     * 下载ePub文件
+     */
+    downloadEPUB(epubBlob, title) {
+        const url = URL.createObjectURL(epubBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.sanitizeFileName(title)}.epub`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        this.showNotification('✅ ePub文件已下载完成！');
+    }
+
+    addNote() {
+        const noteText = prompt('请输入笔记内容:');
+        if (noteText && noteText.trim()) {
+            const note = {
+                id: Date.now(),
+                text: noteText.trim(),
+                timestamp: new Date().toLocaleString(),
+                position: this.getScrollPosition()
+            };
+            
+            this.notes.push(note);
+            this.saveNotes();
+            this.showNotification('笔记已添加');
+        }
+    }
+
+    toggleHighlight() {
+        const isHighlightMode = document.body.classList.toggle('highlight-mode');
+        
+        if (isHighlightMode) {
+            this.enableTextHighlight();
+            this.showNotification('高亮模式已开启，选择文本即可高亮');
+        } else {
+            this.disableTextHighlight();
+            this.showNotification('高亮模式已关闭');
+        }
+        
+        this.saveSetting('highlightMode', isHighlightMode);
+    }
+
+    enableTextHighlight() {
+        const contentElement = document.getElementById('articleContent');
+        if (contentElement) {
+            contentElement.addEventListener('mouseup', this.handleTextSelection.bind(this));
+        }
+    }
+
+    disableTextHighlight() {
+        const contentElement = document.getElementById('articleContent');
+        if (contentElement) {
+            contentElement.removeEventListener('mouseup', this.handleTextSelection.bind(this));
+        }
+    }
+
+    handleTextSelection(e) {
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+        
+        if (selectedText.length > 0) {
+            const range = selection.getRangeAt(0);
+            const span = document.createElement('span');
+            span.className = 'text-highlight';
+            span.style.backgroundColor = '#fef3c7';
+            span.style.padding = '2px 0';
+            span.setAttribute('data-highlight-id', Date.now());
+            
+            try {
+                range.surroundContents(span);
+                
+                // 保存高亮信息
+                const highlight = {
+                    id: Date.now(),
+                    text: selectedText,
+                    timestamp: new Date().toLocaleString(),
+                    elementId: span.getAttribute('data-highlight-id')
+                };
+                
+                this.highlights.push(highlight);
+                this.saveHighlights();
+                
+                this.showNotification('文本已高亮');
+            } catch (error) {
+                console.error('高亮文本失败:', error);
+                this.showNotification('高亮失败，请选择连续的文本');
+            }
+            
+            selection.removeAllRanges();
+        }
+    }
+
+    handleSelectionChange() {
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+        
+        // 可以在这里添加选中文本时的其他功能
+        if (selectedText.length > 50) {
+            // 自动显示一些操作按钮等
+        }
+    }
+
+    handleKeyboardShortcuts(e) {
+        // Ctrl + S: 保存文章
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            this.saveArticle();
+        }
+        
+        // Ctrl + H: 切换高亮模式
+        if (e.ctrlKey && e.key === 'h') {
+            e.preventDefault();
+            this.toggleHighlight();
+        }
+        
+        // Ctrl + D: 切换主题
+        if (e.ctrlKey && e.key === 'd') {
+            e.preventDefault();
+            this.toggleDarkMode();
+        }
+
+        // Ctrl + +: 增大字体
+        if (e.ctrlKey && (e.key === '+' || e.key === '=')) {
+            e.preventDefault();
+            this.adjustFontSize(1);
+        }
+
+        // Ctrl + -: 减小字体
+        if (e.ctrlKey && e.key === '-') {
+            e.preventDefault();
+            this.adjustFontSize(-1);
+        }
+    }
+
+    toggleDarkMode() {
+        const currentTheme = document.body.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        this.switchTheme(newTheme);
+        
+        // 更新主题按钮状态
+        const themeButtons = document.querySelectorAll('.theme-option');
+        if (themeButtons.length > 0) {
+            themeButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === newTheme);
+            });
+        }
+    }
+
+    saveArticle() {
+        if (!this.isContentLoaded) {
+            this.showNotification('请等待内容加载完成');
+            return;
+        }
+
+        const titleElement = document.getElementById('articleTitle');
+        const contentElement = document.getElementById('articleContent');
+        
+        if (!titleElement || !contentElement) {
+            this.showNotification('无法保存文章');
+            return;
+        }
+
+        const articleTitle = titleElement.textContent;
+        const articleContent = contentElement.innerHTML;
+        
+        const articleData = {
+            title: articleTitle,
+            content: articleContent,
+            url: window.location.href,
+            savedAt: new Date().toISOString(),
+            notes: this.notes,
+            highlights: this.highlights
+        };
+        
+        chrome.storage.local.set({ 
+            ['savedArticle_' + Date.now()]: articleData 
+        }, () => {
+            this.showNotification('文章已保存到本地存储');
+        });
+    }
+
+    shareArticle() {
+        const titleElement = document.getElementById('articleTitle');
+        if (!titleElement) {
+            this.showNotification('无法分享文章');
+            return;
+        }
+
+        const articleTitle = titleElement.textContent;
+        const articleUrl = window.location.href;
+        
+        // 检查是否在安全上下文中（HTTPS或localhost）
+        const isSecureContext = window.isSecureContext || 
+                               location.protocol === 'https:' || 
+                               location.hostname === 'localhost' || 
+                               location.hostname === '127.0.0.1';
+        
+        if (navigator.share && isSecureContext) {
+            navigator.share({
+                title: articleTitle,
+                url: articleUrl
+            }).then(() => {
+                this.showNotification('分享成功');
+            }).catch(error => {
+                console.log('分享取消或失败:', error);
+                // 降级到复制功能
+                this.copyToClipboard(`${articleTitle} - ${articleUrl}`);
+            });
+        } else {
+            // 降级方案：复制到剪贴板
+            this.copyToClipboard(`${articleTitle} - ${articleUrl}`);
+        }
+    }
+
+    /**
+     * 复制文本到剪贴板
+     */
+    copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            this.showNotification('链接已复制到剪贴板');
+        }).catch(() => {
+            // 终极降级方案
+            this.fallbackCopyToClipboard(text);
+        });
+    }
+
+    /**
+     * 备用复制方法
+     */
+    fallbackCopyToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                this.showNotification('链接已复制到剪贴板');
+            } else {
+                prompt('请手动复制链接:', text);
+            }
+        } catch (err) {
+            prompt('请手动复制链接:', text);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    showNotification(message, duration = 2000) {
+        // 移除现有的通知
+        const existingNotification = document.querySelector('.reader-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = 'reader-notification';
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.3s ease;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, duration);
+    }
+
+    showErrorMessage(message) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(220,53,69,0.9);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            z-index: 10000;
+            text-align: center;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        `;
+        errorDiv.innerHTML = `
+            <p style="margin-bottom: 15px;">${message}</p>
+            <button onclick="this.parentNode.remove()" style="margin-top: 10px; padding: 8px 16px; background: white; border: none; border-radius: 4px; cursor: pointer; color: #333;">确定</button>
+        `;
+        document.body.appendChild(errorDiv);
+    }
+
+    getScrollPosition() {
+        return {
+            top: window.pageYOffset || document.documentElement.scrollTop,
+            height: document.documentElement.scrollHeight
+        };
+    }
+
+    saveSetting(key, value) {
+        chrome.storage.local.set({ [key]: value });
+    }
+
+    saveNotes() {
+        chrome.storage.local.set({ readerNotes: this.notes });
+    }
+
+    saveHighlights() {
+        chrome.storage.local.set({ readerHighlights: this.highlights });
+    }
+
+    async loadSavedData() {
+        try {
+            const result = await chrome.storage.local.get([
+                'fontSize', 'fontFamily', 'lineHeight', 'contentWidth', 'theme',
+                'highlightMode', 'readerNotes', 'readerHighlights'
+            ]);
+            
+            this.applySavedSettings(result);
+            this.loadNotes(result.readerNotes);
+            this.loadHighlights(result.readerHighlights);
+            
+        } catch (error) {
+            console.error('加载保存的数据失败:', error);
+        }
+    }
+
+    applySavedSettings(settings = null) {
+        const applySettings = (result) => {
+            // 字体设置
+            if (result.fontSize) {
+                this.currentFontSize = result.fontSize;
+                const fontSizeSlider = document.getElementById('fontSize');
+                const fontSizeValue = document.getElementById('fontSizeValue');
+                const contentElement = document.getElementById('articleContent');
+                
+                if (fontSizeSlider && fontSizeValue && contentElement) {
+                    fontSizeSlider.value = result.fontSize;
+                    fontSizeValue.textContent = `${result.fontSize}px`;
+                    contentElement.style.fontSize = `${result.fontSize}px`;
+                }
+            }
+
+            if (result.fontFamily) {
+                const fontFamilySelect = document.getElementById('fontFamily');
+                const contentElement = document.getElementById('articleContent');
+                
+                if (fontFamilySelect && contentElement) {
+                    fontFamilySelect.value = result.fontFamily;
+                    contentElement.style.fontFamily = result.fontFamily;
+                }
+            }
+
+            if (result.lineHeight) {
+                const lineHeightSlider = document.getElementById('lineHeight');
+                const lineHeightValue = document.getElementById('lineHeightValue');
+                const contentElement = document.getElementById('articleContent');
+                
+                if (lineHeightSlider && lineHeightValue && contentElement) {
+                    lineHeightSlider.value = result.lineHeight;
+                    lineHeightValue.textContent = result.lineHeight;
+                    contentElement.style.lineHeight = result.lineHeight;
+                }
+            }
+
+            if (result.contentWidth) {
+                const contentWidthSlider = document.getElementById('contentWidth');
+                const contentWidthValue = document.getElementById('contentWidthValue');
+                const contentElement = document.querySelector('.article-main');
+                
+                if (contentWidthSlider && contentWidthValue && contentElement) {
+                    contentWidthSlider.value = result.contentWidth;
+                    contentWidthValue.textContent = `${result.contentWidth}px`;
+                    contentElement.style.maxWidth = `${result.contentWidth}px`;
+                }
+            }
+
+            if (result.theme) {
+                this.switchTheme(result.theme);
+                const themeButtons = document.querySelectorAll('.theme-option');
+                if (themeButtons.length > 0) {
+                    themeButtons.forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.theme === result.theme);
+                    });
+                }
+            }
+
+            if (result.highlightMode) {
+                document.body.classList.add('highlight-mode');
+                this.enableTextHighlight();
+            }
+        };
+
+        if (settings) {
+            applySettings(settings);
+        } else {
+            chrome.storage.local.get([
+                'fontSize', 'fontFamily', 'lineHeight', 'contentWidth', 'theme', 'highlightMode'
+            ]).then(applySettings);
+        }
+    }
+
+    loadNotes(notes) {
+        if (notes && Array.isArray(notes)) {
+            this.notes = notes;
+        }
+    }
+
+    loadHighlights(highlights) {
+        if (highlights && Array.isArray(highlights)) {
+            this.highlights = highlights;
+        }
+    }
+
+    restoreHighlights() {
+        // 在实际实现中，这里会根据保存的高亮数据重新创建高亮
+        console.log('恢复高亮:', this.highlights.length);
+    }
+}
+
+// 添加CSS动画
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+    
+    .text-highlight {
+        background-color: #fef3c7 !important;
+        transition: background-color 0.3s ease;
+        padding: 2px 0;
+    }
+    
+    .text-highlight:hover {
+        background-color: #fde68a !important;
+    }
+    
+    .highlight-mode {
+        cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23f59e0b' d='M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7H15V9H21ZM18 12L15 9V12H18ZM12 15C13.1 15 14 15.9 14 17C14 18.1 13.1 19 12 19C10.9 19 10 18.1 10 17C10 15.9 10.9 15 12 15Z'/%3E%3C/svg%3E") 12 12, auto;
+    }
+    
+    .empty-toc {
+        text-align: center;
+        color: #6b7280;
+        padding: 20px;
+        font-size: 14px;
+    }
+    
+    /* ePub选择对话框动画 */
+    .epub-choice-dialog {
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .upload-progress-dialog {
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* 响应式设计 */
+    @media (max-width: 480px) {
+        .epub-choice-dialog > div,
+        .upload-progress-dialog > div {
+            margin: 20px;
+            padding: 20px;
+        }
+        
+        .epub-choice-dialog .button-group {
+            flex-direction: column;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// 初始化阅读器应用
+document.addEventListener('DOMContentLoaded', () => {
+    new ReaderApp();
+    console.log('智能阅读器已初始化');
+});

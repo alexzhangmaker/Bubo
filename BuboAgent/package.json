@@ -14,7 +14,9 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@mastra/core": "^1.4.0",
+    "axios": "^1.13.5",
     "better-sqlite3": "^12.6.2",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -22,6 +24,8 @@
     "googleapis": "^171.4.0",
     "helmet": "^8.1.0",
     "morgan": "^1.10.1",
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.67.0",
     "xlsx": "^0.18.5"
   }
 }
