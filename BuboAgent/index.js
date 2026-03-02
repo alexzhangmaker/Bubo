@@ -507,6 +507,7 @@ async function extractMetadata(url) {
     const MAX_RETRIES = 2;
     let attempt = 0;
 
+
     const performExtraction = async () => {
         try {
             const { data: html } = await axios.get(url, {
