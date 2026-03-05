@@ -1,0 +1,26 @@
+{
+    "manifest_version": 3,
+    "name": "DeepSeek AIHelper",
+    "version": "1.0",
+    "description": "Adds a sticky toolbar to chat.deepseek.com to save AI content as Markdown.",
+    "permissions": [
+        "clipboardRead"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://chat.deepseek.com/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "css": [
+                "styles.css"
+            ]
+        }
+    ],
+    "icons": {
+        "48": "icon48.png",
+        "128": "icon128.png"
+    }
+}

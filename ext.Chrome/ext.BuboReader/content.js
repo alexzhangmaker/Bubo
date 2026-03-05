@@ -124,21 +124,39 @@ class BuboReaderCore {
         // Preference 1: Custom Selector (Crane style)
         if (this.currentSelector) {
             const el = document.querySelector(this.currentSelector);
-            if (el) return { ...meta, content: el.outerHTML, textContent: el.textContent };
+            if (el) {
+                const cleaned = this.cleanHTML(el.cloneNode(true));
+                return { ...meta, content: cleaned.innerHTML, textContent: cleaned.textContent };
+            }
         }
 
         // Preference 2: Readability.js (Crane fallback)
         if (typeof Readability !== 'undefined') {
             try {
                 const clone = document.cloneNode(true);
-                const reader = new Readability(clone);
-                return reader.parse();
+                // Pre-clean readability clone if needed, but usually Readability handles unknown tags by stripping them or keeping them.
+                // However, h-char might be preserved as it's not "unknown" in some contexts.
+                const cleanedClone = this.cleanHTML(clone);
+                const reader = new Readability(cleanedClone);
+                const article = reader.parse();
+                if (article) return article;
             } catch (e) { console.error('Readability failed', e); }
         }
 
         // Preference 3: Basic extraction (webNote style)
         const main = document.querySelector('article') || document.querySelector('main') || document.body;
-        return { title: document.title, content: main.innerHTML, textContent: main.textContent };
+        const cleanedMain = this.cleanHTML(main.cloneNode(true));
+        return { title: document.title, content: cleanedMain.innerHTML, textContent: cleanedMain.textContent };
+    }
+
+    cleanHTML(node) {
+        // Remove Xueqiu/Han.css custom typography tags that break reader mode layout
+        const customTags = node.querySelectorAll('h-char, h-inner, h-cs');
+        customTags.forEach(el => {
+            const text = el.innerText;
+            el.replaceWith(document.createTextNode(text));
+        });
+        return node;
     }
 
     async toggleReaderMode() {
@@ -166,6 +184,18 @@ class BuboReaderCore {
                         <button class="bubo-scheme-btn" data-scheme="light" style="width:32px; height:32px; border-radius:16px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:12px;">A</button>
                         <button class="bubo-scheme-btn" data-scheme="sepia" style="width:32px; height:32px; border-radius:16px; border:1px solid #ddd; background:#f4ecd8; cursor:pointer; font-size:12px; color:#5b4636;">A</button>
                         <button class="bubo-scheme-btn" data-scheme="dark" style="width:32px; height:32px; border-radius:16px; border:1px solid #444; background:#1a1a1a; cursor:pointer; font-size:12px; color:#fff;">A</button>
+                        <button id="bubo-fullscreen" title="Toggle Fullscreen" style="width:32px; height:32px; border-radius:16px; border:1px solid #ddd; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:inherit; padding: 0;">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                            </svg>
+                        </button>
+                        <button id="bubo-collect" title="Collect to Bubo" style="width:32px; height:32px; border-radius:16px; border:1px solid #ddd; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:inherit; padding: 0; transition: all 0.3s ease;">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v13a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                        </button>
                         <button id="bubo-epub" style="background:#1a73e8; color:#fff; border:none; padding:0 16px; border-radius:16px; height:32px; cursor:pointer; font-size:13px; font-weight:500;">Export EPUB</button>
                     </div>
                     <h1 id="bubo-title" style="font-size:36px; margin-bottom:30px; line-height:1.2; font-weight:700;"></h1>
@@ -174,6 +204,8 @@ class BuboReaderCore {
             `;
             document.body.appendChild(container);
             document.getElementById('bubo-close').onclick = () => this.toggleReaderMode();
+            document.getElementById('bubo-fullscreen').onclick = () => this.toggleFullscreen();
+            document.getElementById('bubo-collect').onclick = () => this.collectToBubo(article);
             document.getElementById('bubo-epub').onclick = () => this.exportEPUB(article);
 
             container.querySelectorAll('.bubo-scheme-btn').forEach(btn => {
@@ -227,6 +259,76 @@ class BuboReaderCore {
     async exportEPUB(article) {
         // Send to Crane's native reader page for EPUB generation as it has the libs
         chrome.runtime.sendMessage({ action: 'openReader', url: window.location.href, content: article });
+    }
+
+    toggleFullscreen() {
+        const container = document.getElementById('buboreader-container');
+        if (!container) return;
+
+        if (!document.fullscreenElement) {
+            container.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    async collectToBubo(article) {
+        const btn = document.getElementById('bubo-collect');
+        if (!btn || btn.disabled) return;
+
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span style="font-size:10px;">...</span>';
+
+        try {
+            const response = await chrome.runtime.sendMessage({
+                action: 'collectUrl',
+                article: {
+                    url: window.location.href,
+                    title: article.title,
+                    description: article.description,
+                    image: article.image
+                }
+            });
+
+            if (response && response.success) {
+                btn.style.backgroundColor = '#10b981';
+                btn.style.color = '#fff';
+                btn.style.borderColor = '#10b981';
+                btn.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                `;
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.backgroundColor = '';
+                    btn.style.color = 'inherit';
+                    btn.style.borderColor = '#ddd';
+                    btn.innerHTML = originalContent;
+                }, 3000);
+            } else {
+                throw new Error(response ? response.error : 'Unknown error');
+            }
+        } catch (e) {
+            console.error('Collection failed:', e);
+            btn.style.backgroundColor = '#ef4444';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#ef4444';
+            btn.innerHTML = `<span title="${e.message}">✖</span>`;
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.backgroundColor = '';
+                btn.style.color = 'inherit';
+                btn.style.borderColor = '#ddd';
+                btn.innerHTML = originalContent;
+            }, 3000);
+        }
     }
 }
 

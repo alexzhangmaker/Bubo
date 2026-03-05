@@ -89,8 +89,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true;
     }
+    // --- Bubo Logic: Collect URL ---
+    else if (request.action === "collectUrl") {
+        collectUrlToBubo(request.article).then(result => {
+            sendResponse(result);
+        }).catch(err => {
+            sendResponse({ success: false, error: err.message });
+        });
+        return true; // async
+    }
     return true;
 });
+
+async function collectUrlToBubo(article) {
+    const backendUrl = 'http://localhost:6565/api/urls';
+    try {
+        const response = await fetch(backendUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url: article.url,
+                title: article.title,
+                description: article.description,
+                image: article.image
+            })
+        });
+
+        if (response.ok) {
+            return { success: true };
+        } else {
+            const err = await response.json();
+            throw new Error(err.error || response.statusText);
+        }
+    } catch (e) {
+        console.error('Bubo Collection Failed:', e);
+        throw e;
+    }
+}
 
 async function openReaderTab(url, content) {
     try {

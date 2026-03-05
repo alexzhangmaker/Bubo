@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemoKeeper - 知识工程管理</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Marked.js for Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --secondary: #64748b;
+            --bg: #0f172a;
+            --sidebar-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: rgba(30, 41, 59, 0.5);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #10b981;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass-blur: 15px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+        }
+
+        /* User Status Bar */
+        header {
+            height: 64px;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(var(--glass-blur));
+            z-index: 100;
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .user-status {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Layout Container */
+        .app-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Navigation Sidebar */
+        aside {
+            width: 280px;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(var(--glass-blur));
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-title {
+            padding: 0 24px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .nav-item {
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-item.active {
+            color: var(--primary-light);
+            background: rgba(99, 102, 241, 0.1);
+            border-left-color: var(--primary);
+        }
+
+        /* Main Area */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            scroll-behavior: smooth;
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .search-container {
+            position: relative;
+            width: 400px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 12px 16px 12px 48px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .search-container input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        /* Knowledge Card */
+        .card-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: var(--transition);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            backdrop-filter: blur(5px);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary-light);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .card-tag {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary-light);
+            text-transform: uppercase;
+        }
+
+        .card-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .card-question {
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.4;
+            color: var(--text-main);
+        }
+
+        .card-preview {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Detail Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 40px;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-header {
+            padding: 32px 40px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-muted);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .close-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 40px 40px;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #cbd5e1;
+        }
+
+        /* Markdown Styling */
+        .markdown-body h3 {
+            margin: 24px 0 16px;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .markdown-body p {
+            margin-bottom: 16px;
+        }
+
+        .markdown-body strong {
+            color: var(--primary-light);
+            font-weight: 600;
+        }
+
+        .markdown-body ul {
+            margin: 16px 0;
+            padding-left: 20px;
+        }
+
+        .markdown-body li {
+            margin-bottom: 8px;
+        }
+
+        .markdown-body em {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="logo">
+            <i data-lucide="brain-circuit"></i>
+            MemoKeeper
+        </div>
+        <div class="user-status">
+            <span style="font-size: 14px; font-weight: 500;">知识攻坚战 · 2026</span>
+            <div class="user-avatar">ZQ</div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <aside id="sidebar">
+            <div class="nav-section">
+                <div class="nav-title">工程项目</div>
+                <div id="project-list">
+                    <!-- Projects populated by JS -->
+                </div>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">维度检索</div>
+                <div class="nav-item" data-filter="all">
+                    <i data-lucide="layers"></i> 全部卡片
+                </div>
+                <div class="nav-item" data-filter="timeline">
+                    <i data-lucide="clock"></i> 时光轴
+                </div>
+                <div class="nav-item" data-filter="starred">
+                    <i data-lucide="star"></i> 精选卡片
+                </div>
+            </div>
+        </aside>
+
+        <main>
+            <div class="main-header">
+                <h1 id="view-title" font-family="'Outfit', sans-serif">浏览卡片</h1>
+                <div class="search-container">
+                    <i data-lucide="search" class="search-icon" size="18"></i>
+                    <input type="text" id="search-input" placeholder="搜索知识点、大额资产、预收账款...">
+                </div>
+            </div>
+
+            <div id="card-grid" class="card-list">
+                <!-- Cards populated by JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Card Detail Modal -->
+    <div id="card-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="modal-tags"></div>
+                <button class="close-btn" id="modal-close">
+                    <i data-lucide="x" size="20"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h2 id="modal-question" style="margin-bottom: 24px;"></h2>
+                <div id="modal-answer" class="markdown-body"></div>
+                <div id="modal-meta"
+                    style="margin-top: 32px; border-top: 1px solid var(--border); padding-top: 20px; font-size: 12px; color: var(--text-muted);">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Sample Data ---
+        const SAMPLE_PROJECTS = [
+            { id: 'financial', name: '汤森路透财报分析', icon: 'bar-chart-3' },
+            { id: 'm-and-a', name: '并购与估值', icon: 'briefcase' },
+            { id: 'tech-stack', name: '技术架构演进', icon: 'code-2' }
+        ];
+
+        const SAMPLE_CARDS = [
+            {
+                id: 1,
+                projectId: 'financial',
+                question: '这家公司的资产负债率是多少？',
+                answer: `以下是对汤森路透（Thomson Reuters）2025年底资产负债状况的深入拆解：
+
+### 1. 资产负债率是多少？
+截至2025年12月31日，公司的总资产为 **179.40 亿美元**，总负债为 **60.26 亿美元**。
+简单计算得出的**账面资产负债率约为 33.59%**。这对于一家大型跨国企业来说是一个非常健康且偏低的负债水平。
+*   **补充指标**：公司管理层和评级机构更看重的杠杆指标是“净债务与调整后EBITDA的比率”。2025年底该比率仅为 **0.6倍**（甚至远低于公司自己设定的2.5倍上限目标），说明公司账面现金充裕，实际偿债压力极小。
+*(数据出处：Q4财报新闻稿 第13页 资产负债表，第20页 净债务计算)*`,
+                tags: ['财务分析', '资产负债'],
+                timestamp: '2025-12-31T10:00:00Z',
+                source: 'Q4财报新闻稿'
+            },
+            {
+                id: 2,
+                projectId: 'financial',
+                question: '有没有哪些大额资产项目需要注意（比如过高的商誉、应收账款、存货）？',
+                answer: `### 2. 哪些大额资产项目需要注意？（商誉、应收、存货）
+作为一家“轻资产”的专业软件和数据公司，它的资产结构与传统制造业完全不同：
+
+*   **过高的商誉和无形资产（占比超70%，需重点注意）**：
+    *   **商誉（Goodwill）**：高达 **79.13 亿美元**，相比去年的 72.62 亿美元进一步增加。
+    *   **无形资产及软件**：其他可识别无形资产为 31.02 亿美元，软件资产为 16.45 亿美元。
+    *   **分析**：这三项相加高达 **126.6 亿美元**，占了总资产（179.4 亿美元）的 **70.5%**。对于软件订阅公司来说这很常见，因为公司长年通过大举收购（例如2025年初收购SafeSend等）来扩张，溢价部分全变成了商誉。这也是未来最大的潜在隐患：一旦被收购的业务表现不及预期，可能会面临巨额的商誉减值（Impairment），从而导致账面利润大幅缩水。
+*   **应收账款（处于健康水平）**：
+    *   2025年底贸易及其他应收账款为 **11.43 亿美元**（去年为 10.87 亿美元）。
+    *   **分析**：仅占总资产的 6.4% 左右。对比其全年约 74.76 亿美元的总收入，应收账款周转非常健康，没有产生大量的坏账堆积风险。
+*   **存货（几乎没有）**：
+    *   在2025年的资产负债表主项目上，**甚至没有单列“存货”这一项**。
+    *   **分析**：除了一小部分正在萎缩的传统纸质印刷出版物外，公司的产品全是云端软件（如Westlaw）和数据源，卖的是账号权限，因此不存在传统意义上的产品滞销或库存积压风险。
+*(数据出处：Q4财报新闻稿 第13页)*`,
+                tags: ['资产结构', '风险预警'],
+                timestamp: '2025-12-31T11:00:00Z',
+                source: 'Q4财报新闻稿'
+            },
+            {
+                id: 3,
+                projectId: 'financial',
+                question: '合同负债（预收款）跟去年比变化多大？',
+                answer: `### 3. 合同负债（预收款/递延收入）跟去年比变化多大？
+汤森路透账面上的合同负债被称为**“递延收入”（Deferred revenue）**。
+*   2025年底，递延收入为 **12.51 亿美元**。
+*   2024年底，递延收入为 **10.62 亿美元**。
+*   **变化**：同比增长了 **1.89 亿美元**，增幅高达 **17.8%**。
+
+**投资视角的解读**：
+对于按年卖软件订阅的公司来说，**递延收入大幅增加是一个极好的信号**。这笔钱是客户为了未来一年的使用权限**提前打给公司的现金**。因为服务还没提供完，会计准则上算作“负债”，但这并不是真正需要掏钱还的债，而是未来的“保底收入”。递延收入的两位数高增长，说明公司在2025年底的新签订单（预订量）非常强劲，为2026年的收入增长锁定了基本盘。
+*(数据出处：Q4财报新闻稿 第13页)*`,
+                tags: ['递延收入', '业绩预警'],
+                timestamp: '2025-12-31T12:00:00Z',
+                source: 'Q4财报新闻稿'
+            }
+        ];
+
+        // --- State ---
+        let cards = SAMPLE_CARDS;
+        let activeProject = null;
+        let searchQuery = '';
+        let activeFilter = 'all'; // 'all', 'timeline', 'starred'
+
+        // --- DOM Elements ---
+        const projectList = document.getElementById('project-list');
+        const cardGrid = document.getElementById('card-grid');
+        const viewTitle = document.getElementById('view-title');
+        const searchInput = document.getElementById('search-input');
+        const cardModal = document.getElementById('card-modal');
+        const modalClose = document.getElementById('modal-close');
+
+        // --- Functions ---
+        function init() {
+            renderProjects();
+            renderCards();
+            setupEventListeners();
+            lucide.createIcons();
+        }
+
+        function renderProjects() {
+            projectList.innerHTML = SAMPLE_PROJECTS.map(p => `
+                <div class="nav-item ${activeProject === p.id ? 'active' : ''}" onclick="filterByProject('${p.id}')">
+                    <i data-lucide="${p.icon}" size="18"></i> ${p.name}
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function renderCards() {
+            let filteredCards = [...cards].filter(c => {
+                const matchesProject = !activeProject || c.projectId === activeProject;
+                const matchesSearch = c.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    c.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+                return matchesProject && matchesSearch;
+            });
+
+            if (activeFilter === 'timeline') {
+                filteredCards.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            } else if (activeFilter === 'starred') {
+                filteredCards = filteredCards.filter(c => c.starred);
+            }
+
+            if (filteredCards.length === 0) {
+                cardGrid.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="ghost" size="48" style="margin-bottom: 16px; opacity: 0.5;"></i>
+                        <p>未找到相关结论卡片</p>
+                    </div>
+                `;
+            } else {
+                cardGrid.innerHTML = filteredCards.map(c => `
+                    <div class="card" onclick="openCard(${c.id})">
+                        <div class="card-header">
+                            <div class="card-tag">${c.tags[0]}</div>
+                            <span class="card-time">${new Date(c.timestamp).toLocaleDateString()}</span>
+                        </div>
+                        <div class="card-question">${c.question}</div>
+                        <div class="card-preview">${marked.parse(c.answer)}</div>
+                    </div>
+                `).join('');
+            }
+            lucide.createIcons();
+        }
+
+        function filterByProject(projectId) {
+            activeProject = activeProject === projectId ? null : projectId;
+            updateViewTitle();
+            renderProjects();
+            renderCards();
+        }
+
+        function updateViewTitle() {
+            if (activeProject) {
+                const project = SAMPLE_PROJECTS.find(p => p.id === activeProject);
+                viewTitle.textContent = project.name;
+            } else {
+                switch (activeFilter) {
+                    case 'timeline': viewTitle.textContent = '时光轴'; break;
+                    case 'starred': viewTitle.textContent = '精选卡片'; break;
+                    default: viewTitle.textContent = '全部卡片';
+                }
+            }
+        }
+
+        function openCard(id) {
+            const card = cards.find(c => c.id === id);
+            if (!card) return;
+
+            document.getElementById('modal-tags').innerHTML = card.tags.map(t => `<span class="card-tag" style="margin-right: 8px">${t}</span>`).join('');
+            document.getElementById('modal-question').textContent = card.question;
+            document.getElementById('modal-answer').innerHTML = marked.parse(card.answer);
+            document.getElementById('modal-meta').textContent = `出处：${card.source} | 时间：${new Date(card.timestamp).toLocaleString()}`;
+
+            cardModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCard() {
+            cardModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function setupEventListeners() {
+            searchInput.addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                renderCards();
+            });
+
+            modalClose.addEventListener('click', closeCard);
+
+            cardModal.addEventListener('click', (e) => {
+                if (e.target === cardModal) closeCard();
+            });
+
+            // Global escape key to close modal
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeCard();
+            });
+
+            // Filter items
+            document.querySelectorAll('[data-filter]').forEach(item => {
+                item.addEventListener('click', () => {
+                    const filter = item.getAttribute('data-filter');
+                    activeFilter = filter;
+                    document.querySelectorAll('[data-filter]').forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+
+                    activeProject = null; // Clear project filter when switching main category
+                    updateViewTitle();
+                    renderProjects();
+                    renderCards();
+                });
+            });
+        }
+
+        // --- Start App ---
+        init();
+    </script>
+</body>
+
+</html>
