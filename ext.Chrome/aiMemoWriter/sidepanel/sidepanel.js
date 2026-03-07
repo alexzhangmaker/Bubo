@@ -19,4 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { status.innerText = ''; }, 3000);
         });
     };
+
+    const homeBtn = document.getElementById('home-btn');
+    homeBtn.onclick = () => {
+        chrome.tabs.create({ url: 'http://localhost:3301/appMemoKeeper.html' });
+    };
+
+    const bookmarksBtn = document.getElementById('bookmarks-btn');
+    bookmarksBtn.onclick = () => {
+        chrome.tabs.create({ url: 'http://localhost:6565/bookmarks/index.html' });
+    };
 });
