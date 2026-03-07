@@ -48,19 +48,58 @@ db.exec('CREATE TABLE IF NOT EXISTS trades (id INTEGER PRIMARY KEY AUTOINCREMENT
 db.exec('CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, event_date TEXT, description TEXT, raw_text TEXT, telegram_id TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
 db.exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, telegram_id TEXT UNIQUE, username TEXT UNIQUE, first_name TEXT, last_name TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
 
-// Migration: Update collected_urls if it's the old schema
+// Migration: Update collected_urls to enforce UNIQUE url and sync metadata
 try {
-    db.exec('ALTER TABLE collected_urls ADD COLUMN title TEXT');
-} catch (e) { }
-try {
-    db.exec('ALTER TABLE collected_urls ADD COLUMN description TEXT');
-} catch (e) { }
-try {
-    db.exec('ALTER TABLE collected_urls ADD COLUMN image TEXT');
-} catch (e) { }
-try {
-    db.exec('ALTER TABLE collected_urls ADD COLUMN collection_id INTEGER');
-} catch (e) { }
+    // 1. Clean up duplicates first (keeping the latest one by created_at)
+    db.exec(`
+        DELETE FROM collected_urls 
+        WHERE id NOT IN (
+            SELECT MAX(id) FROM collected_urls GROUP BY url
+        )
+    `);
+
+    // 2. Create the new schema if needed (SQLite doesn't support ADD UNIQUE)
+    // We check if the unique constraint already exists by looking for it in the table info
+    const tableInfo = db.prepare("PRAGMA table_info(collected_urls)").all();
+    const hasCollectionId = tableInfo.some(col => col.name === 'collection_id');
+
+    // Check if the URL index is unique
+    const indexInfo = db.prepare("PRAGMA index_list(collected_urls)").all();
+    const isUrlUnique = indexInfo.some(idx => idx.unique === 1 && idx.origin === 'u');
+
+    if (!isUrlUnique) {
+        console.log('🔄 Migrating collected_urls to enforce UNIQUE url constraint...');
+        db.exec('BEGIN TRANSACTION');
+        db.exec('ALTER TABLE collected_urls RENAME TO collected_urls_old');
+        db.exec(`
+            CREATE TABLE collected_urls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                url TEXT NOT NULL UNIQUE, 
+                title TEXT, 
+                description TEXT, 
+                image TEXT, 
+                collection_id INTEGER, 
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        db.exec(`
+            INSERT INTO collected_urls (id, url, title, description, image, collection_id, created_at)
+            SELECT id, url, title, description, image, collection_id, created_at FROM collected_urls_old
+        `);
+        db.exec('DROP TABLE collected_urls_old');
+        db.exec('COMMIT');
+        console.log('✅ Migration complete.');
+    }
+} catch (e) {
+    console.error('Migration Error:', e.message);
+    try { db.exec('ROLLBACK'); } catch (err) { }
+}
+
+// Ensure the schema is correct if previous migrations failed or were partial
+try { db.exec('ALTER TABLE collected_urls ADD COLUMN title TEXT'); } catch (e) { }
+try { db.exec('ALTER TABLE collected_urls ADD COLUMN description TEXT'); } catch (e) { }
+try { db.exec('ALTER TABLE collected_urls ADD COLUMN image TEXT'); } catch (e) { }
+try { db.exec('ALTER TABLE collected_urls ADD COLUMN collection_id INTEGER'); } catch (e) { }
 
 // Migration: Add telegram_id to reminders if it doesn't exist
 try {
@@ -694,10 +733,14 @@ app.post('/api/urls', async (req, res) => {
 
         const existing = db.prepare('SELECT id FROM collected_urls WHERE url = ?').get(url);
         if (existing) {
-            console.log(`🔄 Updating existing bookmark for ${url} (ID: ${existing.id})`);
-            const updateStmt = db.prepare('UPDATE collected_urls SET title = ?, description = ?, image = ?, collection_id = ? WHERE id = ?');
+            console.log(`🔄 Updating existing bookmark for ${url} (ID: ${existing.id}) and moving to top`);
+            const updateStmt = db.prepare(`
+                UPDATE collected_urls 
+                SET title = ?, description = ?, image = ?, collection_id = ?, created_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            `);
             updateStmt.run(metadata.title, metadata.description, metadata.image, collection_id || null, existing.id);
-            res.json({ id: existing.id, ...metadata });
+            res.json({ id: existing.id, ...metadata, updated: true });
         } else {
             console.log(`✨ Creating new bookmark for ${url}`);
             const insertStmt = db.prepare('INSERT INTO collected_urls (url, title, description, image, collection_id) VALUES (?, ?, ?, ?, ?)');

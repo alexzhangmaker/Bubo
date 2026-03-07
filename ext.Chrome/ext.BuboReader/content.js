@@ -298,10 +298,14 @@ class BuboReaderCore {
                 btn.style.backgroundColor = '#10b981';
                 btn.style.color = '#fff';
                 btn.style.borderColor = '#10b981';
+                const successMsg = response.updated ? 'Updated' : 'Collected';
                 btn.innerHTML = `
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
+                    <div style="display:flex; flex-direction:column; align-items:center; line-height:1;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span style="font-size:8px; margin-top:1px;">${successMsg}</span>
+                    </div>
                 `;
                 setTimeout(() => {
                     btn.disabled = false;

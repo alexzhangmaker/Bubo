@@ -1,8 +1,10 @@
-# BuboCloudCache
+# BuboMemoMgr
 
-A Node.js service that caches Google Drive folder contents locally.
+BuboMemoMgr is a knowledge management service that manages memos and cards with local caching and Google Drive synchronization. It serves as a bridge between your local knowledge base and cloud storage.
 
 ## Features
+- **Knowledge Card Management**: Organize information as persistent memos.
+- **Local-first Caching**: Blazing fast access to frequently used documents.
 1. **Metadata Sync**: Fetches file metadata (name, UUID, URL, update time) from a specified Google Drive folder and stores it in SQLite.
 2. **Local Caching**: On-demand downloading and caching of files to a local directory.
 3. **API Access**: 
@@ -13,9 +15,10 @@ A Node.js service that caches Google Drive folder contents locally.
 
 ## Setup
 1. **Environment Variables**: Use `.env` (see `.env.example`).
-    - `FIREBASE_CLIENT_EMAIL`: Google Service Account email.
-    - `FIREBASE_PRIVATE_KEY`: Google Service Account private key.
+    - `GOOGLE_CLIENT_EMAIL`: Google Service Account email.
+    - `GOOGLE_PRIVATE_KEY`: Google Service Account private key.
     - `GOOGLE_DRIVE_FOLDER_ID`: The ID of the folder to cache.
+    - `ENABLE_CLOUD_SYNC`: Set to `false` to disable all Google Drive interactions (local mode).
 2. **Install Dependencies**: `npm install`.
 3. **Run**: `node index.js`.
 

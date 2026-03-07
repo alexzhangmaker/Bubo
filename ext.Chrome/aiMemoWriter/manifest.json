@@ -1,11 +1,22 @@
 {
     "manifest_version": 3,
-    "name": "DeepSeek AIHelper",
+    "name": "aiMemoWriter",
     "version": "1.0",
     "description": "Adds a sticky toolbar to chat.deepseek.com to save AI content as Markdown.",
     "permissions": [
-        "clipboardRead"
+        "clipboardRead",
+        "sidePanel",
+        "storage"
     ],
+    "action": {
+        "default_title": "AIHelper Config"
+    },
+    "side_panel": {
+        "default_path": "sidepanel/sidepanel.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
     "content_scripts": [
         {
             "matches": [

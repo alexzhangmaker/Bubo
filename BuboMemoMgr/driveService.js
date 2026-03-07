@@ -9,8 +9,8 @@ dotenv.config();
 
 const auth = new google.auth.GoogleAuth({
     credentials: {
-        client_email: process.env.FIREBASE_CLIENT_EMAIL?.trim(),
-        private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        client_email: process.env.GOOGLE_CLIENT_EMAIL?.trim(),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     },
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
 });
@@ -19,6 +19,7 @@ const drive = google.drive({ version: 'v3', auth });
 
 const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
+const IS_SYNC_ENABLED = process.env.ENABLE_CLOUD_SYNC !== 'false';
 
 // Ensure cache directory exists
 fs.ensureDirSync(CACHE_DIR);
@@ -27,6 +28,10 @@ fs.ensureDirSync(CACHE_DIR);
  * Syncs metadata from the Google Drive folder to the local SQLite database.
  */
 export async function syncMetadata() {
+    if (!IS_SYNC_ENABLED) {
+        console.log('ℹ️ Cloud sync is disabled. Skipping metadata sync.');
+        return;
+    }
     if (!FOLDER_ID) {
         console.warn('⚠️ GOOGLE_DRIVE_FOLDER_ID not set in .env');
         return;
@@ -84,6 +89,10 @@ export async function downloadAndCache(uuid) {
         return file.cache_path;
     }
 
+    if (!IS_SYNC_ENABLED) {
+        throw new Error('Cloud sync is disabled and file is not cached locally.');
+    }
+
     const driveId = file.drive_id;
     const destPath = path.join(CACHE_DIR, `${uuid}_${file.name}`);
 
@@ -113,6 +122,50 @@ export async function downloadAndCache(uuid) {
     } catch (error) {
         db.prepare("UPDATE files SET cache_status = 'failed' WHERE uuid = ?").run(uuid);
         console.error(`❌ Failed to cache ${file.name}:`, error.message);
+        throw error;
+    }
+}
+
+/**
+ * Uploads a local file to Google Drive and updates the database.
+ */
+export async function uploadToDrive(uuid, filePath, fileName, mimeType) {
+    if (!IS_SYNC_ENABLED) {
+        console.log(`ℹ️ Cloud sync is disabled. Skip upload for ${fileName}`);
+        return null;
+    }
+    if (!FOLDER_ID) throw new Error('GOOGLE_DRIVE_FOLDER_ID not set');
+
+    try {
+        console.log(`📤 Uploading ${fileName} to Google Drive...`);
+        const fileMetadata = {
+            name: fileName,
+            parents: [FOLDER_ID],
+        };
+        const media = {
+            mimeType: mimeType,
+            body: fs.createReadStream(filePath),
+        };
+
+        const res = await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: 'id, webContentLink, modifiedTime, size',
+        });
+
+        const driveId = res.data.id;
+        const size = res.data.size ? parseInt(res.data.size) : (await fs.stat(filePath)).size;
+
+        db.prepare(`
+            UPDATE files 
+            SET drive_id = ?, url = ?, size = ?, last_modified = ?, cache_status = 'cached'
+            WHERE uuid = ?
+        `).run(driveId, res.data.webContentLink, size, res.data.modifiedTime, uuid);
+
+        console.log(`✅ File uploaded to Drive: ${driveId}`);
+        return driveId;
+    } catch (error) {
+        console.error('❌ Error uploading to Drive:', error.message);
         throw error;
     }
 }

@@ -21,7 +21,17 @@ db.exec(`
     cache_status TEXT DEFAULT 'pending', -- 'pending', 'cached', 'failed'
     last_cached_at TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
+  );
+
+  CREATE TABLE IF NOT EXISTS memos (
+    uuid TEXT PRIMARY KEY,
+    title TEXT,             -- Also serves as "Question"
+    tags TEXT,              -- Comma separated tags
+    content_uuid TEXT,      -- Reference to files.uuid
+    last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (content_uuid) REFERENCES files(uuid)
+  );
 `);
 
 export default db;

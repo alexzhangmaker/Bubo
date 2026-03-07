@@ -103,7 +103,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function collectUrlToBubo(article) {
     const backendUrl = 'http://localhost:6565/api/urls';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
     try {
+        console.log('BuboReader: Collecting URL...', article.url);
         const response = await fetch(backendUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -112,18 +116,30 @@ async function collectUrlToBubo(article) {
                 title: article.title,
                 description: article.description,
                 image: article.image
-            })
+            }),
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         if (response.ok) {
-            return { success: true };
+            const data = await response.json();
+            console.log('BuboReader: Collection Success', data);
+            return { success: true, updated: data.updated };
         } else {
-            const err = await response.json();
-            throw new Error(err.error || response.statusText);
+            const text = await response.text();
+            let errorMessage = response.statusText;
+            try {
+                const err = JSON.parse(text);
+                errorMessage = err.error || errorMessage;
+            } catch (e) { }
+            throw new Error(`Server Error: ${errorMessage} (${response.status})`);
         }
     } catch (e) {
-        console.error('Bubo Collection Failed:', e);
-        throw e;
+        clearTimeout(timeoutId);
+        const detail = e.name === 'AbortError' ? 'Request timed out (10s)' : e.message;
+        console.error('BuboReader: Collection Failed:', detail);
+        throw new Error(detail);
     }
 }
 
