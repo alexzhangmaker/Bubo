@@ -200,6 +200,14 @@ class BuboReaderCore {
                     </div>
                     <h1 id="bubo-title" style="font-size:36px; margin-bottom:30px; line-height:1.2; font-weight:700;"></h1>
                     <div id="bubo-content" style="font-size:20px; line-height:1.7; transition: color 0.3s;"></div>
+                    <style>
+                        #bubo-content img {
+                            max-width: 100% !important;
+                            height: auto !important;
+                            display: block !important;
+                            margin: 20px auto !important;
+                        }
+                    </style>
                 </div>
             `;
             document.body.appendChild(container);
