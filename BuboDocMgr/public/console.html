@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuboDocMgr Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --accent: #22d3ee;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--card-bg);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .doc-item {
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .doc-item:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .doc-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .doc-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .doc-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .doc-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .doc-item:hover .doc-actions {
+            opacity: 1;
+        }
+
+        .action-icon {
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .action-icon:hover {
+            color: var(--primary);
+        }
+
+        .action-icon.delete:hover {
+            color: var(--danger);
+        }
+
+        #upload-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 32px;
+            border-radius: 16px;
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-drop {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .file-drop:hover {
+            border-color: var(--primary);
+        }
+
+        .status-overlay {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .log-panel {
+            margin-top: 24px;
+            background-color: #000;
+            color: #10b981;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #064e3b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BuboDocMgr Console</h1>
+            <div class="actions">
+                <button class="btn-outline" onclick="triggerBackup()">Backup to GDrive</button>
+                <button class="btn-outline" onclick="triggerRestore()">Restore from GDrive</button>
+                <button class="btn-primary" onclick="showUploadModal()">Upload Document</button>
+            </div>
+        </header>
+
+        <div class="card">
+            <div class="doc-grid" id="doc-grid">
+                <!-- Documents will be loaded here -->
+            </div>
+        </div>
+
+        <div class="log-panel" id="log-panel">
+            [System] Console initialized. Ready for operations.
+        </div>
+    </div>
+
+    <div id="upload-modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2>Upload Document</h2>
+            <div class="file-drop" onclick="document.getElementById('file-input').click()" id="drop-zone">
+                <span id="file-name">Click or drag & drop file here</span>
+                <input type="file" id="file-input" onchange="handleFileSelect(event)">
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+                <button class="btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="uploadFile()">Upload</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-overlay" class="status-overlay"></div>
+
+    <script>
+        const API_BASE = '/api';
+        let selectedFile = null;
+
+        async function fetchDocs() {
+            try {
+                const response = await fetch(`${API_BASE}/docs`);
+                const docs = await response.json();
+                renderDocs(docs);
+            } catch (err) {
+                log('Error fetching documents: ' + err.message);
+            }
+        }
+
+        function getFileIcon(type) {
+            if (type.includes('pdf')) return '📄';
+            if (type.includes('image')) return '🖼️';
+            if (type.includes('json')) return '📦';
+            if (type.includes('audio')) return '🎵';
+            if (type.includes('video')) return '🎬';
+            return '📁';
+        }
+
+        function renderDocs(docs) {
+            const grid = document.getElementById('doc-grid');
+            grid.innerHTML = '';
+            
+            if (docs.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No documents found.</div>';
+                return;
+            }
+
+            docs.forEach(doc => {
+                const item = document.createElement('div');
+                item.className = 'doc-item';
+                item.innerHTML = `
+                    <div class="doc-icon">${getFileIcon(doc.file_type)}</div>
+                    <div class="doc-title" title="${doc.title}">${doc.title}</div>
+                    <div class="doc-meta">${formatDate(doc.last_modified)}</div>
+                    <div class="doc-actions">
+                        <span class="action-icon" onclick="viewFile('${doc.file_uri}')">👁️</span>
+                        <span class="action-icon" onclick="downloadFile('${doc.file_uri}', '${doc.title}')">⬇️</span>
+                        <span class="action-icon delete" onclick="deleteDoc(${doc.id})">🗑️</span>
+                    </div>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        function showUploadModal() {
+            document.getElementById('upload-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('upload-modal').style.display = 'none';
+            selectedFile = null;
+            document.getElementById('file-name').innerText = 'Click or drag & drop file here';
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedFile = file;
+                document.getElementById('file-name').innerText = file.name;
+            }
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) {
+                showStatus('Please select a file first', 'var(--danger)');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('title', selectedFile.name);
+
+            try {
+                log(`Uploading ${selectedFile.name}...`);
+                const response = await fetch(`${API_BASE}/docs`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showStatus('Upload successful!', 'var(--primary)');
+                    closeModal();
+                    fetchDocs();
+                    log('Upload successful.');
+                } else {
+                    const err = await response.json();
+                    showStatus('Upload failed: ' + err.error, 'var(--danger)');
+                }
+            } catch (err) {
+                showStatus('Upload error: ' + err.message, 'var(--danger)');
+            }
+        }
+
+        async function deleteDoc(id) {
+            if (!confirm('Are you sure you want to delete this document?')) return;
+            
+            try {
+                log(`Deleting document ID ${id}...`);
+                const response = await fetch(`${API_BASE}/docs/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showStatus('Deleted successfully', 'var(--primary)');
+                    fetchDocs();
+                    log('Deleted successfully.');
+                }
+            } catch (err) {
+                showStatus('Delete failed', 'var(--danger)');
+            }
+        }
+
+        function viewFile(uri) {
+            window.open(uri, '_blank');
+        }
+
+        function downloadFile(uri, title) {
+            const link = document.createElement('a');
+            link.href = uri;
+            link.download = title;
+            link.click();
+        }
+
+        async function triggerBackup() {
+            try {
+                showStatus('Starting backup...', 'var(--primary)');
+                log('Starting Google Drive backup...');
+                const response = await fetch(`${API_BASE}/backup`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    showStatus('Backup completed!', 'var(--primary)');
+                    log('Backup completed successfully.');
+                    console.log(result);
+                } else {
+                    showStatus('Backup failed: ' + result.error, 'var(--danger)');
+                    log('Backup failed: ' + result.error);
+                }
+            } catch (err) {
+                showStatus('Backup error: ' + err.message, 'var(--danger)');
+            }
+        }
+
+        async function triggerRestore() {
+            try {
+                showStatus('Starting restore...', 'var(--primary)');
+                log('Starting Google Drive restore...');
+                const response = await fetch(`${API_BASE}/restore`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    showStatus('Restore completed!', 'var(--primary)');
+                    log('Restore completed successfully.');
+                    fetchDocs();
+                } else {
+                    showStatus('Restore failed: ' + result.error, 'var(--danger)');
+                    log('Restore failed: ' + result.error);
+                }
+            } catch (err) {
+                showStatus('Restore error: ' + err.message, 'var(--danger)');
+            }
+        }
+
+        function showStatus(msg, color) {
+            const el = document.getElementById('status-overlay');
+            el.innerText = msg;
+            el.style.backgroundColor = color;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 3000);
+        }
+
+        function log(msg) {
+            const panel = document.getElementById('log-panel');
+            const entry = document.createElement('div');
+            entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        // Initialize
+        fetchDocs();
+    </script>
+</body>
+</html>
