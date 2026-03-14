@@ -143,6 +143,35 @@ app.delete('/api/tickers/:id', async (req, res) => {
     }
 });
 
+// Immediate Message API
+app.post('/api/sendMessage', async (req, res) => {
+    const { targetID, message, channel } = req.body;
+    
+    if (!targetID || !message || !channel) {
+        return res.status(400).json({ error: 'Missing required fields: targetID, message, channel' });
+    }
+
+    try {
+        if (channel === 'googleChat' || channel === 'google-chat') {
+            if (process.env.ENABLE_GOOGLE_CHAT !== 'true') {
+                return res.status(400).json({ error: 'Google Chat provider is disabled.' });
+            }
+            await googleChat.sendMessage(targetID, message);
+        } else if (channel === 'telegram') {
+            if (process.env.ENABLE_TELEGRAM_CHAT !== 'true') {
+                return res.status(400).json({ error: 'Telegram provider is disabled.' });
+            }
+            await telegram.sendMessage(targetID, message);
+        } else {
+            return res.status(400).json({ error: 'Invalid channel. Use "telegram" or "googleChat".' });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API] Send message error on ${channel}:`, err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'BuboBots' });
 });

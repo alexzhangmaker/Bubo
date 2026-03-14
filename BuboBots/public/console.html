@@ -173,6 +173,27 @@
                 <button onclick="addSchedule()">Save Schedule</button>
             </div>
 
+            <!-- Send Immediate Message -->
+            <div class="card">
+                <h3>Send Immediate Message</h3>
+                <div class="form-group">
+                    <label>Provider</label>
+                    <select id="i-provider">
+                        <option value="google-chat">Google Chat</option>
+                        <option value="telegram">Telegram</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target ID (Space ID or Chat ID)</label>
+                    <input type="text" id="i-target" placeholder="spaces/XXXX or -100XXXX">
+                </div>
+                <div class="form-group">
+                    <label>Message Content</label>
+                    <textarea id="i-message" rows="4" placeholder="Enter message to send now..."></textarea>
+                </div>
+                <button onclick="sendImmediateMessage()" style="background-color: var(--success);">Send Message</button>
+            </div>
+
             <!-- List Schedules -->
             <div class="card" style="grid-column: span 2">
                 <h3>Active Schedules</h3>
@@ -375,6 +396,30 @@
             if (!confirm('Are you sure you want to delete this ticker?')) return;
             const res = await fetch(`/api/tickers/${id}`, { method: 'DELETE' });
             if (res.ok) fetchTickers();
+        }
+
+        async function sendImmediateMessage() {
+            const channel = document.getElementById('i-provider').value;
+            const targetID = document.getElementById('i-target').value.trim();
+            const message = document.getElementById('i-message').value.trim();
+
+            if (!targetID || !message) {
+                return alert('Target ID and Message are required.');
+            }
+
+            const res = await fetch('/api/sendMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel, targetID, message })
+            });
+
+            if (res.ok) {
+                alert('Message sent successfully!');
+                document.getElementById('i-message').value = '';
+            } else {
+                const err = await res.json();
+                alert('Failed to send message: ' + (err.error || 'Unknown error'));
+            }
         }
 
         init();

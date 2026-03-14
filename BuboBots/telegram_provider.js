@@ -32,7 +32,7 @@ class TelegramProvider {
                 // handleCommand is now async
                 commands.handleCommand(userText).then(replyText => {
                     if (replyText) {
-                        this.bot.sendMessage(chatId, replyText);
+                        this.bot.sendMessage(chatId, replyText, { parse_mode: 'HTML' });
                     }
                 }).catch(err => console.error('[Telegram] Command Error:', err));
             });
@@ -49,7 +49,7 @@ class TelegramProvider {
     async sendMessage(chatId, text) {
         if (!this.bot) throw new Error('Telegram bot not initialized');
         try {
-            await this.bot.sendMessage(chatId, text);
+            await this.bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
             console.log(`[Telegram] Message sent to ${chatId}`);
         } catch (err) {
             console.error('[Telegram] Failed to send message:', err.message);

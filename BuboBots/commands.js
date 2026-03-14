@@ -9,7 +9,7 @@ const handlers = {
         return `Echo: ${args.join(' ')}`;
     },
     'alert': async (args) => {
-        if (args.length < 3) return "Usage: /alert <ticker> <quote1> <quote2>\n(Quotes can be absolute values like 250 or relative like +5% or -10%)";
+        if (args.length < 3) return "Usage: /alert [ticker] [quote1] [quote2]\n(Quotes can be absolute values like 250 or relative like +5% or -10%)";
         
         const ticker = args[0].toUpperCase();
         let q1Str = args[1];
@@ -63,8 +63,26 @@ const handlers = {
             return `Failed to update ticker: ${err.message}`;
         }
     },
+    'alerts': async () => {
+        try {
+            const tickers = await db.getTickers();
+            if (!tickers || tickers.length === 0) {
+                return "<i>List is empty. No tickers are currently being tracked. Use /alert to add one.</i>";
+            }
+
+            let response = "<b>📊 Currently Tracked Tickers 📊</b>\n\n";
+            for (const t of tickers) {
+                const max = t.quoteMax !== null ? `<b>&gt;= ${t.quoteMax.toFixed(2)}</b>` : 'N/A';
+                const min = t.quoteMin !== null ? `<b>&lt;= ${t.quoteMin.toFixed(2)}</b>` : 'N/A';
+                response += `• <b>${t.ticker}</b>\n  ↳ Sell (Max): ${max}\n  ↳ Buy (Min): ${min}\n\n`;
+            }
+            return response.trim();
+        } catch (err) {
+            return `<b>Failed to fetch alerts:</b> ${err.message}`;
+        }
+    },
     'help': async () => {
-        return "Available commands:\n/echo [msg]\n/alert <ticker> <quote1> <quote2>\n/help";
+        return "<b>Available commands:</b>\n/echo [msg]\n/alert [ticker] [quote1] [quote2]\n/alerts\n/help";
     }
 };
 
