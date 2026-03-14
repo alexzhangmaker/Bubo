@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuboAIProxy Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --accent: #22d3ee;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        h1, h2, h3 { margin-top: 0; }
+
+        header {
+            grid-column: 1 / -1;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        /* Command Dictionary Section */
+        .command-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        input, textarea, select {
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        /* Queue List Section */
+        .queue-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .queue-table th, .queue-table td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending { background-color: var(--border); color: var(--text-muted); }
+        .status-processing { background-color: var(--warning); color: #000; }
+        .status-completed { background-color: var(--success); color: #fff; }
+        .status-failed { background-color: var(--danger); color: #fff; }
+
+        .request-item:hover { background-color: rgba(255,255,255,0.02); cursor: pointer; }
+
+        /* Modal / Detail View */
+        #detail-view {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        pre {
+            background: #000;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            color: var(--accent);
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BuboAIProxy Console</h1>
+            <div>
+                <span id="server-status" style="color: var(--success)">● Online</span>
+            </div>
+        </header>
+
+        <section class="card">
+            <h3>Command Dictionary</h3>
+            <div class="command-editor">
+                <input type="text" id="cmd-name" placeholder="Command Name (e.g. summarize)">
+                <select id="cmd-model">
+                    <option value="gemini">Gemini</option>
+                    <option value="deepseek">DeepSeek</option>
+                </select>
+                <textarea id="cmd-prompt" rows="8" placeholder="Prompt Template (use {{param}} for variables)"></textarea>
+                <button onclick="saveCommand()">Save / Update Command</button>
+            </div>
+            <div id="cmd-list" style="margin-top: 20px">
+                <!-- List of existing commands -->
+            </div>
+        </section>
+
+        <section class="card">
+            <h3>Request Queue</h3>
+            <table class="queue-table">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Command</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="queue-body">
+                    <!-- Requests will load here -->
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <div id="detail-view" onclick="this.style.display='none'">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2>Request Detail</h2>
+            <div id="modal-content"></div>
+            <button onclick="document.getElementById('detail-view').style.display='none'">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        async function fetchRequests() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/requests`);
+                const data = await res.json();
+                renderQueue(data);
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchCommands() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/commands`);
+                const data = await res.json();
+                renderCommands(data);
+            } catch (err) { console.error(err); }
+        }
+
+        function renderQueue(requests) {
+            const body = document.getElementById('queue-body');
+            body.innerHTML = requests.map(req => `
+                <tr class="request-item" onclick="showDetail('${req.uuid}')">
+                    <td title="${req.uuid}">${req.uuid.slice(0, 8)}...</td>
+                    <td>${req.command}</td>
+                    <td>${new Date(req.created_at).toLocaleTimeString()}</td>
+                    <td><span class="status-badge status-${req.status}">${req.status}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderCommands(commands) {
+            const list = document.getElementById('cmd-list');
+            list.innerHTML = '<h4>Existing Commands:</h4>' + commands.map(c => `
+                <div style="font-size: 13px; margin-bottom: 5px; color: var(--text-muted)">
+                    <code>${c.command}</code> (${c.model})
+                </div>
+            `).join('');
+        }
+
+        async function saveCommand() {
+            const cmd = {
+                command: document.getElementById('cmd-name').value,
+                model: document.getElementById('cmd-model').value,
+                prompt_template: document.getElementById('cmd-prompt').value,
+                parameters: {}
+            };
+
+            if (!cmd.command || !cmd.prompt_template) return alert('Fill all fields');
+
+            const res = await fetch(`${API_BASE}/api/admin/commands`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cmd)
+            });
+
+            if (res.ok) {
+                alert('Command saved!');
+                fetchCommands();
+            }
+        }
+
+        async function showDetail(uuid) {
+            const res = await fetch(`${API_BASE}/api/result/${uuid}`);
+            const data = await res.json();
+            
+            const modal = document.getElementById('modal-content');
+            modal.innerHTML = `
+                <p><strong>UUID:</strong> ${uuid}</p>
+                <p><strong>Status:</strong> ${data.status}</p>
+                <p><strong>Result:</strong></p>
+                <pre>${JSON.stringify(data.result || data.error, null, 2)}</pre>
+            `;
+            document.getElementById('detail-view').style.display = 'flex';
+        }
+
+        // Initialize
+        fetchRequests();
+        fetchCommands();
+        setInterval(fetchRequests, 5000);
+    </script>
+</body>
+</html>
