@@ -139,6 +139,15 @@
             color: var(--accent);
             font-size: 12px;
         }
+
+        .param-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        .param-row input { flex: 1; }
+        .param-row button { background-color: var(--danger); padding: 5px 10px; }
     </style>
 </head>
 <body>
@@ -158,8 +167,19 @@
                     <option value="gemini">Gemini</option>
                     <option value="deepseek">DeepSeek</option>
                 </select>
-                <textarea id="cmd-prompt" rows="8" placeholder="Prompt Template (use {{param}} for variables)"></textarea>
-                <button onclick="saveCommand()">Save / Update Command</button>
+                <textarea id="cmd-prompt" rows="8" placeholder="Prompt Template (use {{paramKey}} for variables)"></textarea>
+                
+                <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 14px; color: var(--text-muted)">Define Parameters (Keys)</span>
+                        <button type="button" onclick="addParamRow()" style="padding: 5px 10px; background-color: var(--success); font-size: 12px;">+ Add Param</button>
+                    </div>
+                    <div id="params-container">
+                        <!-- Param rows go here -->
+                    </div>
+                </div>
+
+                <button onclick="saveCommand()" style="margin-top: 10px;">Save / Update Command</button>
             </div>
             <div id="cmd-list" style="margin-top: 20px">
                 <!-- List of existing commands -->
@@ -182,6 +202,24 @@
                 </tbody>
             </table>
         </section>
+
+        <section class="card" style="grid-column: 1 / -1;">
+            <h3>Test Command Selection</h3>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                    <select id="test-cmd-select" onchange="onTestCommandSelect()">
+                        <option value="">Select a command to test...</option>
+                    </select>
+                    <div id="test-params-container" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- dynamic param inputs -->
+                    </div>
+                    <button onclick="testCommand()" style="background-color: var(--warning); color: #000; margin-top: 5px;">Run Test Request</button>
+                </div>
+                <div style="flex: 2; background: #000; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto;">
+                    <pre id="test-output" style="margin: 0; padding: 0; background: transparent; white-space: pre-wrap; word-wrap: break-word;">Waiting for test execution...</pre>
+                </div>
+            </div>
+        </section>
     </div>
 
     <div id="detail-view" onclick="this.style.display='none'">
@@ -194,6 +232,7 @@
 
     <script>
         const API_BASE = '';
+        let allCommands = [];
 
         async function fetchRequests() {
             try {
@@ -207,6 +246,7 @@
             try {
                 const res = await fetch(`${API_BASE}/api/admin/commands`);
                 const data = await res.json();
+                allCommands = data;
                 renderCommands(data);
             } catch (err) { console.error(err); }
         }
@@ -225,22 +265,84 @@
 
         function renderCommands(commands) {
             const list = document.getElementById('cmd-list');
-            list.innerHTML = '<h4>Existing Commands:</h4>' + commands.map(c => `
-                <div style="font-size: 13px; margin-bottom: 5px; color: var(--text-muted)">
-                    <code>${c.command}</code> (${c.model})
+            list.innerHTML = '<h4>Existing Commands:</h4>' + commands.map(c => {
+                let paramsStr = '';
+                try {
+                    const params = JSON.parse(c.parameters || '{}');
+                    const keys = Object.keys(params);
+                    if (keys.length > 0) {
+                        paramsStr = `<br><span style="color:#64748b; font-size:11px;">Params: [${keys.join(', ')}]</span>`;
+                    }
+                } catch(e){}
+                return `
+                <div style="font-size: 13px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px dotted var(--border);">
+                    <code>${c.command}</code> <span style="color:var(--accent)">(${c.model})</span>
+                    ${paramsStr}
+                    <div style="margin-top: 4px; display:flex; gap: 8px;">
+                        <button style="padding: 2px 6px; font-size: 10px; unset:all; background:var(--primary); cursor:pointer;" onclick="editCommand('${c.command}')">Edit</button>
+                    </div>
                 </div>
-            `).join('');
+            `}).join('');
+
+            // Update Test Dropdown
+            const testSelect = document.getElementById('test-cmd-select');
+            testSelect.innerHTML = '<option value="">Select a command to test...</option>' + 
+                commands.map(c => `<option value="${c.command}">${c.command}</option>`).join('');
+        }
+
+        function addParamRow(key = '', description = '') {
+            const container = document.getElementById('params-container');
+            const div = document.createElement('div');
+            div.className = 'param-row';
+            div.innerHTML = `
+                <input type="text" placeholder="paramKey (e.g. text)" value="${key}" class="param-key">
+                <input type="text" placeholder="Description (optional)" value="${description}" class="param-desc">
+                <button type="button" onclick="this.parentElement.remove()">X</button>
+            `;
+            container.appendChild(div);
+        }
+
+        async function editCommand(cmdName) {
+            const res = await fetch(`${API_BASE}/api/admin/commands`);
+            const commands = await res.json();
+            const target = commands.find(c => c.command === cmdName);
+            if (!target) return;
+
+            document.getElementById('cmd-name').value = target.command;
+            document.getElementById('cmd-model').value = target.model;
+            document.getElementById('cmd-prompt').value = target.prompt_template;
+            
+            const container = document.getElementById('params-container');
+            container.innerHTML = '';
+            
+            try {
+                const params = JSON.parse(target.parameters || '{}');
+                for (const [k, v] of Object.entries(params)) {
+                    addParamRow(k, v);
+                }
+            } catch(e) {}
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         async function saveCommand() {
+            // Collect parameters from UI
+            const paramRows = document.querySelectorAll('.param-row');
+            const parameters = {};
+            paramRows.forEach(row => {
+                const key = row.querySelector('.param-key').value.trim();
+                const desc = row.querySelector('.param-desc').value.trim();
+                if (key) parameters[key] = desc;
+            });
+
             const cmd = {
-                command: document.getElementById('cmd-name').value,
+                command: document.getElementById('cmd-name').value.trim(),
                 model: document.getElementById('cmd-model').value,
-                prompt_template: document.getElementById('cmd-prompt').value,
-                parameters: {}
+                prompt_template: document.getElementById('cmd-prompt').value.trim(),
+                parameters: parameters
             };
 
-            if (!cmd.command || !cmd.prompt_template) return alert('Fill all fields');
+            if (!cmd.command || !cmd.prompt_template) return alert('Fill all required fields');
 
             const res = await fetch(`${API_BASE}/api/admin/commands`, {
                 method: 'POST',
@@ -251,6 +353,10 @@
             if (res.ok) {
                 alert('Command saved!');
                 fetchCommands();
+                // Clear UI
+                document.getElementById('cmd-name').value = '';
+                document.getElementById('cmd-prompt').value = '';
+                document.getElementById('params-container').innerHTML = '';
             }
         }
 
@@ -266,6 +372,90 @@
                 <pre>${JSON.stringify(data.result || data.error, null, 2)}</pre>
             `;
             document.getElementById('detail-view').style.display = 'flex';
+        }
+
+        function onTestCommandSelect() {
+            const selected = document.getElementById('test-cmd-select').value;
+            const container = document.getElementById('test-params-container');
+            container.innerHTML = '';
+            if (!selected) return;
+
+            const cmd = allCommands.find(c => c.command === selected);
+            if (!cmd) return;
+
+            try {
+                const params = JSON.parse(cmd.parameters || '{}');
+                for (const [k, v] of Object.entries(params)) {
+                    container.innerHTML += `
+                        <div style="display: flex; flex-direction: column;">
+                            <label style="font-size: 12px; color: var(--text-muted); margin-bottom: 3px;">{{${k}}} ${v ? ' - ' + v : ''}</label>
+                            <textarea class="test-param-val" data-key="${k}" rows="2" placeholder="Value for ${k}..."></textarea>
+                        </div>
+                    `;
+                }
+            } catch(e) {}
+        }
+
+        async function testCommand() {
+            const selected = document.getElementById('test-cmd-select').value;
+            if (!selected) return alert('Select a command first');
+
+            const paramInputs = document.querySelectorAll('.test-param-val');
+            const params = {};
+            paramInputs.forEach(input => {
+                params[input.dataset.key] = input.value;
+            });
+
+            const cmd = allCommands.find(c => c.command === selected);
+            let previewPrompt = cmd.prompt_template;
+            for (const [k, v] of Object.entries(params)) {
+                previewPrompt = previewPrompt.replace(new RegExp(`{{${k}}}`, 'g'), v);
+            }
+
+            const output = document.getElementById('test-output');
+            output.innerHTML = `<span style="color: var(--accent);">[Instantiated Prompt Preview]</span>\n${previewPrompt}\n\n`;
+            output.innerHTML += `[Sending Request for '${selected}'...]\n`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: selected, params })
+                });
+                
+                const data = await res.json();
+                if (!res.ok) {
+                    output.innerHTML += `<span style="color: var(--danger)">Error: ${data.error}</span>\n`;
+                    return;
+                }
+
+                output.innerHTML += `UUID Received: ${data.requestUUID}\nPolling for result`;
+                pollTestResult(data.requestUUID, output);
+                fetchRequests(); // refresh queue UI
+            } catch (err) {
+                output.innerHTML += `<span style="color: var(--danger)">Network Error: ${err.message}</span>\n`;
+            }
+        }
+
+        function pollTestResult(uuid, outputEl) {
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/result/${uuid}`);
+                    const data = await res.json();
+                    
+                    if (data.status === 'completed' || data.status === 'failed') {
+                        clearInterval(interval);
+                        outputEl.innerHTML += `\n\n[Status]: <span style="color: ${data.status === 'completed' ? 'var(--success)' : 'var(--danger)'}">${data.status.toUpperCase()}</span>\n\n`;
+                        outputEl.innerHTML += JSON.stringify(data.result || data.error, null, 2);
+                        fetchRequests();
+                    } else {
+                        outputEl.innerHTML += `.`;
+                    }
+                } catch (e) {
+                    clearInterval(interval);
+                    outputEl.innerHTML += `\n<span style="color: var(--danger)">Poll Error: ${e.message}</span>`;
+                }
+            }, 3000);
         }
 
         // Initialize

@@ -66,6 +66,31 @@ app.get('/api/result/:uuid', async (req, res) => {
     }
 });
 
+// List all available command APIs and their expected parameters
+app.get('/api/listAPIs', async (req, res) => {
+    try {
+        const commands = await db.getAllCommands();
+        const apiList = commands.map(cmd => {
+            let params = {};
+            try {
+                if (cmd.parameters) {
+                    params = JSON.parse(cmd.parameters);
+                }
+            } catch (e) {
+                console.warn(`Failed to parse parameters for command ${cmd.command}`, e);
+            }
+            return {
+                command: cmd.command,
+                model: cmd.model,
+                parameters: params
+            };
+        });
+        res.json({ apis: apiList });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Admin Interfaces
 app.get('/api/admin/requests', async (req, res) => {
     try {

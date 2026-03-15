@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-async function callGemini(prompt, apiKey, model = 'gemini-pro') {
+async function callGemini(prompt, apiKey, model = 'gemini-1.5-pro') {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const data = {
         contents: [{ parts: [{ text: prompt }] }]

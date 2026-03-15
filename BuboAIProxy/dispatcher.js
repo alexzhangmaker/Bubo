@@ -28,7 +28,7 @@ async function processQueue() {
             if (cmdConfig.model === 'gemini') {
                 result = await ai.callGemini(prompt, process.env.GEMINI_API_KEY, process.env.GEMINI_MODEL);
             } else if (cmdConfig.model === 'deepseek') {
-                result = await ai.callDeepSeek(prompt, process.env.DEEPSEEK_API_KEY, process.env.DEEPSEEK_API_URL, cmdConfig.model);
+                result = await ai.callDeepSeek(prompt, process.env.DEEPSEEK_API_KEY, process.env.DEEPSEEK_API_URL, process.env.DEEPSEEK_MODEL);
             } else {
                 await db.updateRequestStatus(req.uuid, 'failed', null, `Unsupported model: ${cmdConfig.model}`);
                 continue;

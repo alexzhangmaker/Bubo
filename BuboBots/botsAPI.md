@@ -165,6 +165,29 @@ Returns status of BuboBots service.
 
 ---
 
+## 🤖 AI Proxy API
+
+### 1. List available AI Commands
+**Endpoint:** `GET /api/listAPIs` (Running on BuboAIProxy port, usually 3306)
+Returns a list of all custom AI commands created via the BuboAIProxy console, along with their selected models and expected parameters.
+
+**Response (JSON Array):**
+```json
+{
+  "apis": [
+    {
+      "command": "genThaiWord",
+      "model": "deepseek",
+      "parameters": {
+        "thaiWord": ""
+      }
+    }
+  ]
+}
+```
+
+---
+
 ## 💬 Bot Chat Commands
 
 These commands can be typed directly into the respective chat interfaces (Google Chat, Telegram).
