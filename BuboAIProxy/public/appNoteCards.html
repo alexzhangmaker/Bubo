@@ -1,22 +1,686 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Knowledge Cards (Bubo)</title>
-    <!-- Tailwind CSS -->
+    <title>Knowledge Cards Review App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.4); }
-        .dark .glass { background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .flip-card { perspective: 1000px; }
-        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
-        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
-        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; }
-        .flip-card-back { transform: rotateY(180deg); overflow-y: auto; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            font-weight: bold;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+        }
+        .markdown-body p { margin-bottom: 1em; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .markdown-body code { background-color: #f3f4f6; padding: 0.2em 0.4em; border-radius: 0.25rem; font-family: monospace; }
+        .markdown-body pre code { display: block; padding: 1em; overflow-x: auto; background-color: #1f2937; color: #f3f4f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Sidepanel Styles */
+        #task-sidepanel {
+            transition: transform 0.3s ease-in-out;
+            z-index: 50;
+        }
+        #task-sidepanel.translate-x-full {
+            transform: translateX(100%);
+        }
+        #sidepanel-backdrop {
+            transition: opacity 0.3s ease-in-out;
+            z-index: 40;
+        }
     </style>
 </head>
-<!-- BODY -->
+<body class="bg-gray-50 text-gray-800 h-screen flex flex-col font-sans">
+    <header class="bg-indigo-600 text-white shadow-md z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-brain text-2xl mr-3"></i>
+                    <span class="font-bold text-xl tracking-tight">AI Knowledge Cards</span>
+                </div>
+                <nav class="flex space-x-4">
+                    <button onclick="appUI.switchTab('management-tab')" id="nav-management-tab" class="px-3 py-2 rounded-md text-sm font-medium bg-indigo-700 text-white transition-colors duration-200">
+                        <i class="fas fa-layer-group mr-1"></i> Card Management
+                    </button>
+                    <button onclick="window.open('appNotesReview.html', '_blank')" id="nav-review-tab" class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-500 transition-colors duration-200">
+                        <i class="fas fa-play-circle mr-1"></i> Card Review
+                    </button>
+                    <button onclick="appUI.toggleTaskPanel()" id="nav-tasks-btn" class="px-3 py-2 rounded-md text-sm font-medium text-indigo-100 hover:bg-indigo-500 transition-colors duration-200 relative">
+                        <i class="fas fa-tasks mr-1"></i> Task Monitor
+                        <span id="active-task-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-auto bg-gray-50 p-6">
+        <div class="max-w-7xl mx-auto h-full">
+            <!-- Management Tab -->
+            <div id="management-tab" class="tab-content active h-full flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Knowledge Cards</h2>
+                    <div class="flex space-x-2">
+                        <button onclick="appUI.showCardEditor()" class="bg-indigo-600 font-bold hover:bg-indigo-700 text-white px-4 py-2 rounded shadow transition">
+                            <i class="fas fa-plus mr-2"></i>New Card
+                        </button>
+                        <button onclick="appUI.exportCards()" class="bg-gray-200 hover:bg-gray-300 font-bold text-gray-700 px-4 py-2 rounded shadow transition">
+                            <i class="fas fa-download mr-1"></i> Export
+                        </button>
+                        <label class="bg-gray-200 hover:bg-gray-300 font-bold text-gray-700 px-4 py-2 rounded shadow transition cursor-pointer">
+                            <i class="fas fa-upload mr-1"></i> Import
+                            <input type="file" id="import-file" class="hidden" accept=".json" onchange="appUI.importCards(this)">
+                        </label>
+                    </div>
+                </div>
+                <!-- Filters -->
+                <div class="bg-white p-4 rounded-lg shadow mb-6 flex space-x-4 border border-gray-100">
+                    <div class="flex-1 relative">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="search-input" placeholder="Search by title..." class="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" oninput="appUI.renderCardList()">
+                    </div>
+                </div>
+                <!-- Cards Grid -->
+                <div id="cards-grid" class="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-6">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+            <!-- Review Tab -->
+            <div id="review-tab" class="tab-content h-full flex flex-col">
+                <div id="review-selector" class="h-full flex flex-col">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Choose a Card to Review</h2>
+                    <div id="review-cards-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-6"></div>
+                </div>
+                <div id="active-review" class="hidden h-full flex flex-col max-w-4xl mx-auto w-full">
+                    <!-- Header -->
+                    <div class="flex items-center mb-6">
+                        <button onclick="reviewManager.endReview()" class="text-gray-500 hover:text-gray-800 mr-4 transition"><i class="fas fa-arrow-left text-xl"></i></button>
+                        <h2 class="text-2xl font-bold text-gray-800" id="review-title">Card Title</h2>
+                        <div class="ml-auto flex items-center space-x-2 text-sm font-medium text-gray-500">
+                            <span id="review-stage-badge-1" class="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full">Phase 1: Recall</span>
+                            <i class="fas fa-chevron-right text-xs"></i>
+                            <span id="review-stage-badge-2" class="px-2 py-1 bg-gray-100 text-gray-500 rounded-full">Phase 2: Challenge</span>
+                            <i class="fas fa-chevron-right text-xs"></i>
+                            <span id="review-stage-badge-3" class="px-2 py-1 bg-gray-100 text-gray-500 rounded-full">Phase 3: Quiz</span>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-100 flex-1 flex flex-col overflow-hidden">
+                        <!-- Stage 1 -->
+                        <div id="review-stage-1" class="p-8 flex-1 overflow-y-auto flex flex-col hidden">
+                            <div class="text-center mb-10 mt-10">
+                                <h3 class="text-3xl font-bold text-gray-800 mb-4" id="stage1-question">Question?</h3>
+                                <p class="text-gray-500">Try to recall the answer before showing it.</p>
+                            </div>
+                            <div class="text-center mb-8">
+                                <button onclick="reviewManager.showAnswer()" id="btn-show-answer" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-md transition transform hover:scale-105">Show Answer</button>
+                            </div>
+                            <div id="stage1-answer-container" class="hidden mt-6 flex-1 flex flex-col">
+                                <div class="bg-gray-50 rounded-lg p-6 border border-gray-200 markdown-body max-w-none flex-1 overflow-y-auto" id="stage1-answer-content"></div>
+                                <div class="mt-6 flex justify-end">
+                                    <button onclick="reviewManager.startStage2()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded shadow transition flex items-center font-bold">Enter Interactive Challenge <i class="fas fa-arrow-right ml-2"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage 2 -->
+                        <div id="review-stage-2" class="hidden flex-1 flex flex-col h-full bg-gray-50">
+                            <div id="chat-history" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+                            <div class="p-4 bg-white border-t border-gray-200 flex items-end">
+                                <textarea id="chat-input" rows="2" class="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" placeholder="Type your answer..."></textarea>
+                                <button onclick="reviewManager.submitChatAnswer()" class="ml-3 bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-lg shadow transition h-[50px] w-[50px] flex items-center justify-center"><i class="fas fa-paper-plane"></i></button>
+                                <button onclick="reviewManager.startStage3()" class="ml-3 bg-green-500 hover:bg-green-600 text-white px-4 py-2 font-bold rounded-lg shadow transition h-[50px] whitespace-nowrap">Start Quiz</button>
+                            </div>
+                        </div>
+
+                        <!-- Stage 3 -->
+                        <div id="review-stage-3" class="hidden flex-1 overflow-y-auto p-8 flex flex-col">
+                            <div class="mb-6"><h3 class="text-xl font-bold text-gray-800 mb-2">Quiz Test</h3></div>
+                            <div id="quiz-container" class="space-y-8 flex-1"></div>
+                            <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end">
+                                <button onclick="reviewManager.submitQuiz()" class="bg-indigo-600 hover:bg-indigo-700 font-bold text-white py-3 px-8 rounded shadow transition">Submit Quiz</button>
+                            </div>
+                        </div>
+
+                        <!-- Result -->
+                        <div id="review-result" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50">
+                            <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"><i class="fas fa-check text-4xl text-green-500"></i></div>
+                            <h3 class="text-3xl font-bold text-gray-800 mb-2">Review Completed!</h3>
+                            <button onclick="reviewManager.endReview()" class="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded shadow transition">Return to List</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Task Monitor Sidepanel -->
+    <div id="sidepanel-backdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden" onclick="appUI.toggleTaskPanel(false)"></div>
+    <div id="task-sidepanel" class="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl translate-x-full flex flex-col">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <h3 class="text-xl font-bold text-gray-800">Background Tasks</h3>
+            <button onclick="appUI.toggleTaskPanel(false)" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Editor UI omitted for brevity here -> dynamic insertion -->
+    <div id="modal-container"></div>
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2"></div>
+
+    <script>
+        const TaskEvents = {
+            TASK_CREATED: 'task:created', TASK_UPDATED: 'task:updated',
+            TASK_COMPLETED: 'task:completed', TASK_FAILED: 'task:failed',
+            TASK_CANCELLED: 'task:cancelled', BULK_UPDATE: 'tasks:bulk-update'
+        };
+
+        class EventEmitter {
+            constructor() { this.events = {}; }
+            on(event, listener) { if(!this.events[event]) this.events[event]=[]; this.events[event].push(listener); }
+            off(event, listener) { if(this.events[event]) this.events[event]=this.events[event].filter(l=>l!==listener); }
+            emit(event, data) { if(this.events[event]) this.events[event].forEach(l=>l(data)); }
+        }
+
+        class StorageService {
+            constructor(dbName='NoteCardDB', version=1) { this.dbName=dbName; this.version=version; this.db=null; }
+            async initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.version);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if(!db.objectStoreNames.contains('tasks')) db.createObjectStore('tasks', {keyPath:'id', autoIncrement:true});
+                        if(!db.objectStoreNames.contains('noteCards')) db.createObjectStore('noteCards', {keyPath:'id', autoIncrement:true});
+                        if(!db.objectStoreNames.contains('reviewLogs')) db.createObjectStore('reviewLogs', {keyPath:'id', autoIncrement:true});
+                    };
+                    request.onsuccess = (e) => { this.db = e.target.result; resolve(this.db); };
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            }
+            async _exec(storeName, mode, callback) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction([storeName], mode);
+                    const req = callback(tx.objectStore(storeName));
+                    if(req) { req.onsuccess = ()=>resolve(req.result); req.onerror = ()=>reject(req.error); }
+                    else { tx.oncomplete = ()=>resolve(); tx.onerror = ()=>reject(tx.error); }
+                });
+            }
+            async save(store, data) { return this._exec(store, 'readwrite', s=>s.put(data)); }
+            async get(store, id) { return this._exec(store, 'readonly', s=>s.get(id)); }
+            async getAll(store) { return this._exec(store, 'readonly', s=>s.getAll()); }
+            async update(store, data) { return this._exec(store, 'readwrite', s=>s.put(data)); }
+            async delete(store, id) { return this._exec(store, 'readwrite', s=>s.delete(id)); }
+            // Shortcuts
+            async saveTask(t) { return this.save('tasks', t); } async getTask(id) { return this.get('tasks', id); } async updateTask(t) { return this.update('tasks', t); } async getAllTasks() { return this.getAll('tasks'); } async deleteTask(id) { return this.delete('tasks', id); }
+            async saveCard(c) { return this.save('noteCards', c); } async getCard(id) { return this.get('noteCards', id); } async updateCard(c) { return this.update('noteCards', c); } async getAllCards() { return this.getAll('noteCards'); } async deleteCard(id) { return this.delete('noteCards', id); }
+            async saveReviewLog(l) { return this.save('reviewLogs', l); }
+        }
+
+        class ApiProxy {
+            async submitTask(input) {
+                const payload = {
+                    command: input.command || 'scoreOpenQuestion',
+                    params: input.params || {}
+                };
+                console.log('[ApiProxy] Submit Task Request:', payload);
+                const response = await fetch('/api/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                console.log('[ApiProxy] Submit Task Response:', data);
+                if (!response.ok) throw new Error(data.error || 'Failed to submit task');
+                return { requestId: data.requestUUID };
+            }
+            async queryStatus(requestId) {
+                const response = await fetch(`/api/status/${requestId}`);
+                const data = await response.json();
+                console.log(`[ApiProxy] Status Query for ${requestId}:`, data.status);
+                return data.status;
+            }
+            async fetchResult(requestId) {
+                const response = await fetch(`/api/result/${requestId}`);
+                const data = await response.json();
+                console.log(`[ApiProxy] Fetch Result for ${requestId}:`, data);
+                return data.result;
+            }
+        }
+
+        class TaskManager {
+            constructor(storage, api, eventBus) { this.storage=storage; this.api=api; this.events=eventBus; this.active=new Map(); }
+            async createTask(businessType, input) {
+                const { requestId } = await this.api.submitTask({businessType, ...input});
+                const task = { requestId, businessType, input, status: 'pending', result: null, error: null, createdAt: Date.now(), updatedAt: Date.now(), retryCount:0, pollingConfig: { interval: 1000, maxInterval: 5000, timeout: 300000, attempts:0 } };
+                task.id = await this.storage.saveTask(task);
+                this.events.emit(TaskEvents.TASK_CREATED, task);
+                this.startPolling(task);
+                return task;
+            }
+            startPolling(task) {
+                if(this.active.has(task.id) || ['done','failed','cancelled'].includes(task.status)) return;
+                const poll = async () => {
+                    let t = await this.storage.getTask(task.id);
+                    if(!t) return;
+                    if(Date.now() - t.createdAt > t.pollingConfig.timeout) { t.status='failed'; t.error='Timeout'; await this.storage.updateTask(t); this.events.emit(TaskEvents.TASK_FAILED, t); this.active.delete(t.id); return; }
+                    try {
+                        const status = await this.api.queryStatus(t.requestId);
+                        t.updatedAt = Date.now(); t.pollingConfig.attempts++;
+                        if(status === 'completed' || status === 'done') {
+                            t.status = 'done'; t.result = await this.api.fetchResult(t.requestId);
+                            await this.storage.updateTask(t); this.events.emit(TaskEvents.TASK_COMPLETED, t); this.active.delete(t.id); return;
+                        } else if(status === 'failed') {
+                            t.status = 'failed'; t.error = 'Server failed'; await this.storage.updateTask(t); this.events.emit(TaskEvents.TASK_FAILED, t); this.active.delete(t.id); return;
+                        } else {
+                            t.status = status; t.pollingConfig.interval = Math.min(t.pollingConfig.interval*1.5, t.pollingConfig.maxInterval);
+                            await this.storage.updateTask(t); this.events.emit(TaskEvents.TASK_UPDATED, t);
+                        }
+                    } catch(e) {}
+                    this.active.set(t.id, setTimeout(poll, t.pollingConfig.interval));
+                };
+                this.active.set(task.id, setTimeout(poll, task.pollingConfig.interval));
+            }
+            async recoverTasks() {
+                const tasks = await this.storage.getAllTasks();
+                tasks.forEach(t => { if(['pending','processing'].includes(t.status)) this.startPolling(t); });
+                this.events.emit(TaskEvents.BULK_UPDATE, {});
+            }
+        }
+
+        class NoteCardManager {
+            constructor(storage) { this.storage = storage; }
+            async create(title, tags, content, quiz) {
+                const tArray = tags.split(',').map(s=>s.trim()).filter(Boolean);
+                let qArray = []; if(quiz) { try { qArray = JSON.parse(quiz); } catch(e){ throw new Error("Invalid Quiz JSON"); } }
+                return await this.storage.saveCard({ title, tags: tArray, content, quiz: qArray, createdAt: Date.now(), updatedAt: Date.now() });
+            }
+            async update(id, title, tags, content, quiz) {
+                const card = await this.storage.getCard(id); if(!card) throw new Error("Card not found");
+                card.title = title; card.tags = tags.split(',').map(s=>s.trim()).filter(Boolean); card.content = content;
+                if(quiz) { try { card.quiz = JSON.parse(quiz); } catch(e){ throw new Error("Invalid Quiz JSON"); } } else { card.quiz = []; }
+                card.updatedAt = Date.now();
+                return await this.storage.updateCard(card);
+            }
+            async delete(id) { return await this.storage.deleteCard(id); }
+            async list() { return await this.storage.getAllCards(); }
+        }
+
+        class ReviewManager {
+            constructor(storage, taskManager) { this.storage = storage; this.tm = taskManager; this.currentCard = null; this.startTime = null; }
+            async startReview(cardId, cb) {
+                this.currentCard = await this.storage.getCard(cardId);
+                this.startTime = Date.now();
+                if(!this.currentCard) return;
+                cb('STAGE_1', this.currentCard);
+            }
+            submitChallenge(content) { 
+                return this.tm.createTask('AI_CHALLENGE', { 
+                    command: 'scoreOpenQuestion',
+                    params: {
+                        question: this.currentCard.title,
+                        referenceAnswer: this.currentCard.content,
+                        answerToScore: content
+                    }
+                }); 
+            }
+            submitQuizScore(userAnswers) { 
+                return this.tm.createTask('AI_SCORING', { 
+                    command: 'scoreOpenQuestion',
+                    params: {
+                        question: this.currentCard.title,
+                        referenceAnswer: `Note Card Content: ${this.currentCard.content}\n\nQuiz Questions: ${JSON.stringify(this.currentCard.quiz)}`,
+                        answerToScore: `User Answers: ${JSON.stringify(userAnswers)}`
+                    }
+                }); 
+            }
+            async finishReview(resultDetails) {
+                await this.storage.saveReviewLog({ cardId: this.currentCard.id, reviewTime: Date.now(), duration: Date.now() - this.startTime, result: resultDetails });
+                this.currentCard = null;
+            }
+        }
+
+        const eventBus = new EventEmitter();
+        const storage = new StorageService();
+        const api = new ApiProxy();
+        const tm = new TaskManager(storage, api, eventBus);
+        const cardMgr = new NoteCardManager(storage);
+        const reviewMgr = new ReviewManager(storage, tm);
+
+        const appUI = {
+            init: async function() {
+                await storage.initDB();
+                await tm.recoverTasks();
+                this.renderCardList();
+                this.renderTaskList();
+                
+                eventBus.on(TaskEvents.TASK_CREATED, () => this.renderTaskList());
+                eventBus.on(TaskEvents.TASK_UPDATED, () => this.renderTaskList());
+                eventBus.on(TaskEvents.TASK_COMPLETED, (t) => { this.renderTaskList(); this.handleTaskCompletion(t); });
+                eventBus.on(TaskEvents.TASK_FAILED, () => this.renderTaskList());
+                eventBus.on(TaskEvents.BULK_UPDATE, () => this.renderTaskList());
+
+                document.addEventListener('keydown', (e) => { 
+                    if(e.key === 'Escape') {
+                        this.closeCardEditor(); 
+                        this.toggleTaskPanel(false);
+                    }
+                });
+                
+                document.getElementById('modal-container').innerHTML = `
+                <div id="card-editor-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+                    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                        <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                            <h3 class="text-xl font-bold text-gray-800" id="editor-title">Create Knowledge Card</h3>
+                            <button onclick="appUI.closeCardEditor()" class="text-gray-400 hover:text-gray-600 transition"><i class="fas fa-times text-xl"></i></button>
+                        </div>
+                        <div class="p-6 flex-1 overflow-y-auto">
+                            <input type="hidden" id="edit-card-id">
+                            <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">Title (Question)</label><input type="text" id="edit-card-title" class="w-full border border-gray-300 rounded-md px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                            <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">Tags (Comma separated)</label><input type="text" id="edit-card-tags" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                            <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">Content (Markdown)</label><textarea id="edit-card-content" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea></div>
+                            <div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">Quiz Array (JSON)</label><textarea id="edit-card-quiz" rows="4" class="w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea></div>
+                        </div>
+                        <div class="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+                            <button onclick="appUI.closeCardEditor()" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded font-medium">Cancel</button>
+                            <button onclick="appUI.saveCard()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-medium shadow">Save</button>
+                        </div>
+                    </div>
+                </div>`;
+            },
+            switchTab: function(tabId) {
+                document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                document.getElementById(tabId).classList.add('active');
+                
+                // Active link styling
+                document.querySelectorAll('nav button').forEach(btn => {
+                    btn.classList.remove('bg-indigo-700', 'text-white');
+                    btn.classList.add('text-indigo-100');
+                });
+                
+                // Style based on tab
+                if (tabId === 'management-tab') {
+                    document.getElementById('nav-management-tab').classList.remove('text-indigo-100');
+                    document.getElementById('nav-management-tab').classList.add('bg-indigo-700', 'text-white');
+                } else if (tabId === 'review-tab') {
+                    document.getElementById('nav-review-tab').classList.remove('text-indigo-100');
+                    document.getElementById('nav-review-tab').classList.add('bg-indigo-700', 'text-white');
+                    this.renderReviewSelector();
+                }
+            },
+            startReview: function(id) {
+                window.open(`appNotesReview.html?id=${id}`, '_blank');
+            },
+            toggleTaskPanel: function(forceState) {
+                const panel = document.getElementById('task-sidepanel');
+                const backdrop = document.getElementById('sidepanel-backdrop');
+                const isHidden = panel.classList.contains('translate-x-full');
+                const show = forceState !== undefined ? forceState : isHidden;
+
+                if (show) {
+                    panel.classList.remove('translate-x-full');
+                    backdrop.classList.remove('hidden');
+                } else {
+                    panel.classList.add('translate-x-full');
+                    backdrop.classList.add('hidden');
+                }
+            },
+            renderCardList: async function() {
+                let cards = await cardMgr.list();
+                const searchTerm = (document.getElementById('search-input').value || '').toLowerCase();
+                cards = cards.filter(c => c.title.toLowerCase().includes(searchTerm) || (c.tags && c.tags.some(t=>t.toLowerCase().includes(searchTerm))));
+                
+                const grid = document.getElementById('cards-grid');
+                grid.innerHTML = '';
+                cards.forEach(c => {
+                    grid.innerHTML += `
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 hover:shadow-md transition flex flex-col group">
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="text-lg font-bold text-gray-800">${c.title}</h3>
+                                <button onclick="appUI.startReview(${c.id})" class="text-indigo-600 hover:text-indigo-800 opacity-0 group-hover:opacity-100 transition p-1" title="Start Review">
+                                    <i class="fas fa-play-circle text-xl"></i>
+                                </button>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                ${(c.tags||[]).map(t=>`<span class="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full border border-indigo-100">${t}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                            <span class="text-xs text-gray-400"><i class="far fa-clock mr-1"></i>${new Date(c.updatedAt).toLocaleDateString()}</span>
+                            <div class="space-x-2">
+                                <button onclick="appUI.startReview(${c.id})" class="text-indigo-600 hover:text-indigo-800 transition md:hidden"><i class="fas fa-play-circle"></i></button>
+                                <button onclick="appUI.editCard(${c.id})" class="text-indigo-600 hover:text-indigo-800 transition"><i class="fas fa-edit"></i></button>
+                                <button onclick="appUI.deleteCard(${c.id})" class="text-red-500 hover:text-red-700 transition"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            },
+            showCardEditor: function() {
+                document.getElementById('edit-card-id').value = '';
+                document.getElementById('edit-card-title').value = '';
+                document.getElementById('edit-card-tags').value = '';
+                document.getElementById('edit-card-content').value = '';
+                document.getElementById('edit-card-quiz').value = '';
+                document.getElementById('card-editor-modal').classList.remove('hidden');
+            },
+            closeCardEditor: function() { document.getElementById('card-editor-modal').classList.add('hidden'); },
+            editCard: async function(id) {
+                const c = await storage.getCard(id); if(!c) return;
+                document.getElementById('edit-card-id').value = c.id;
+                document.getElementById('edit-card-title').value = c.title;
+                document.getElementById('edit-card-tags').value = (c.tags||[]).join(', ');
+                document.getElementById('edit-card-content').value = c.content;
+                document.getElementById('edit-card-quiz').value = c.quiz && c.quiz.length ? JSON.stringify(c.quiz) : '';
+                document.getElementById('card-editor-modal').classList.remove('hidden');
+            },
+            deleteCard: async function(id) {
+                if(confirm('Delete this card?')) { await cardMgr.delete(id); this.renderCardList(); this.toast('Card deleted', 'success'); }
+            },
+            saveCard: async function() {
+                try {
+                    const id = document.getElementById('edit-card-id').value;
+                    const title = document.getElementById('edit-card-title').value;
+                    const tags = document.getElementById('edit-card-tags').value;
+                    const content = document.getElementById('edit-card-content').value;
+                    const quiz = document.getElementById('edit-card-quiz').value;
+                    if(!title || !content) { this.toast('Title and Content required', 'error'); return; }
+                    if(id) await cardMgr.update(Number(id), title, tags, content, quiz);
+                    else await cardMgr.create(title, tags, content, quiz);
+                    this.closeCardEditor(); this.renderCardList();
+                    this.toast('Card saved successfully', 'success');
+                } catch(e) { this.toast(e.message, 'error'); }
+            },
+            exportCards: async function() {
+                const cards = await cardMgr.list();
+                const blob = new Blob([JSON.stringify(cards, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `notecards.json`; a.click(); URL.revokeObjectURL(url);
+            },
+            importCards: async function(input) {
+                if(!input.files.length) return;
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const arr = JSON.parse(e.target.result);
+                        if(Array.isArray(arr)) {
+                            for(let c of arr) await cardMgr.create(c.title, (c.tags||[]).join(','), c.content, c.quiz ? JSON.stringify(c.quiz) : null);
+                            this.renderCardList(); this.toast(`Imported cards!`, 'success');
+                        }
+                    } catch(e) { this.toast('Invalid JSON file', 'error'); }
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            },
+            renderTaskList: async function() {
+                const tasks = await storage.getAllTasks();
+                const tbody = document.getElementById('tasks-table-body');
+                tbody.innerHTML = '';
+                let active = 0;
+                tasks.sort((a,b)=>b.updatedAt-a.updatedAt).forEach(t => {
+                    if(['pending','processing'].includes(t.status)) active++;
+                    let badge = t.status==='done'?'bg-green-100 text-green-800':(t.status==='failed'?'bg-red-100 text-red-800':'bg-blue-100 text-blue-800');
+                    tbody.innerHTML += `<tr><td class="px-6 py-4 text-sm text-gray-500">${t.requestId.slice(-6)}</td><td class="px-6 py-4 text-sm font-medium text-gray-900">${t.businessType}</td><td class="px-6 py-4 text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badge}">${t.status}</span></td></tr>`;
+                });
+                document.getElementById('active-task-count').innerText = active;
+            },
+            handleTaskCompletion: function(task) {
+                if(task.businessType === 'AI_CHALLENGE' && reviewManager.activeTask === task.id) {
+                    const hist = document.getElementById('chat-history');
+                    const reply = task.result?.text || "No AI feedback received.";
+                    hist.innerHTML += `<div class="flex w-full mb-4"><div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3 flex-shrink-0"><i class="fas fa-robot text-indigo-600"></i></div><div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-gray-800 max-w-[80%] markdown-body">${marked.parse(reply)}</div></div>`;
+                    hist.scrollTop = hist.scrollHeight;
+                    reviewManager.activeTask = null;
+                } else if (task.businessType === 'AI_SCORING' && reviewManager.activeTask === task.id) {
+                    const resultText = task.result?.text || "";
+                    let score = 0;
+                    const scoreMatch = resultText.match(/(\d+)\/20/) || resultText.match(/(\d+)\/100/) || resultText.match(/总分.*[：:]\s*(\d+)/) || resultText.match(/Score:\s*(\d+)/i);
+                    if (scoreMatch) score = parseInt(scoreMatch[1]);
+                    // Normalize if it was /20 (based on my prompt research)
+                    if (resultText.includes('/20') && !resultText.includes('/100')) score = Math.round((score / 20) * 100);
+                    
+                    reviewManager.showResult(score, "AI Evaluation");
+                    reviewManager.activeTask = null;
+                }
+            },
+            toast: function(msg, type='info') {
+                const container = document.getElementById('toast-container');
+                const t = document.createElement('div');
+                const c = type==='success'?'bg-green-500':(type==='error'?'bg-red-500':'bg-indigo-500');
+                t.className = `${c} text-white px-6 py-3 rounded shadow-lg flex items-center mb-2`;
+                t.innerHTML = `<span>${msg}</span>`;
+                container.appendChild(t);
+                setTimeout(()=>t.remove(), 3000);
+            },
+            renderReviewSelector: async function() {
+                const cards = await storage.getAllCards();
+                const list = document.getElementById('review-cards-list');
+                list.innerHTML = '';
+                cards.forEach(c => {
+                    list.innerHTML += `
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 hover:border-indigo-500 transition cursor-pointer flex flex-col" onclick="reviewManager.init(${c.id})">
+                        <div class="flex items-center mb-3"><div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center"><i class="fas fa-brain"></i></div><h3 class="ml-3 text-lg font-bold text-gray-800">${c.title}</h3></div>
+                        <div class="mt-auto pt-4 flex justify-between items-center text-sm text-gray-500"><span>${c.quiz?.length?'Has Quiz':'Concept Only'}</span><span class="text-indigo-600 font-medium">Start Review <i class="fas fa-arrow-right text-xs ml-1"></i></span></div>
+                    </div>`;
+                });
+                document.getElementById('review-selector').classList.remove('hidden');
+                document.getElementById('active-review').classList.add('hidden');
+            }
+        };
+
+        const reviewManager = {
+            activeTask: null,
+            init: async function(id) {
+                document.getElementById('review-selector').classList.add('hidden');
+                document.getElementById('active-review').classList.remove('hidden');
+                document.getElementById('review-stage-1').classList.remove('hidden');
+                document.getElementById('review-stage-2').classList.add('hidden');
+                document.getElementById('review-stage-3').classList.add('hidden');
+                document.getElementById('review-result').classList.add('hidden');
+                document.getElementById('stage1-answer-container').classList.add('hidden');
+                document.getElementById('chat-history').innerHTML = `<div class="flex w-full mb-4"><div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3 flex-shrink-0"><i class="fas fa-robot text-indigo-600"></i></div><div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-gray-800 max-w-[80%]"><p>I'll challenge your understanding of this topic. Ready?</p></div></div>`;
+                document.getElementById('chat-input').value = '';
+                
+                await reviewMgr.startReview(id, (stage, card) => {
+                    document.getElementById('review-title').innerText = card.title;
+                    document.getElementById('stage1-question').innerText = card.title;
+                    document.getElementById('stage1-answer-content').innerHTML = marked.parse(card.content);
+                });
+            },
+            showAnswer: function() { document.getElementById('stage1-answer-container').classList.remove('hidden'); },
+            startStage2: function() { document.getElementById('review-stage-1').classList.add('hidden'); document.getElementById('review-stage-2').classList.remove('hidden'); },
+            submitChatAnswer: async function() {
+                const input = document.getElementById('chat-input');
+                const val = input.value.trim(); if(!val) return;
+                input.value = '';
+                const hist = document.getElementById('chat-history');
+                hist.innerHTML += `<div class="flex w-full mb-4 justify-end"><div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm max-w-[80%]"><p>${val}</p></div></div>`;
+                hist.scrollTop = hist.scrollHeight;
+                const task = await reviewMgr.submitChallenge(val);
+                this.activeTask = task.id;
+                hist.innerHTML += `<div class="flex w-full mb-4" id="typing-indicator"><div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3"><i class="fas fa-robot text-indigo-600 flex items-center"><span class="ml-1 text-xs">...</span></i></div><div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-gray-500">Processing via Task Engine...</div></div>`;
+                eventBus.on(TaskEvents.TASK_COMPLETED, (t) => { if(t.id === task.id) { const ind = document.getElementById('typing-indicator'); if(ind) ind.remove(); } });
+            },
+            startStage3: function() {
+                document.getElementById('review-stage-2').classList.add('hidden');
+                if(!reviewMgr.currentCard.quiz || reviewMgr.currentCard.quiz.length === 0) { this.showResult(100, "Stage 2 (No Quiz)"); return; }
+                document.getElementById('review-stage-3').classList.remove('hidden');
+                const qc = document.getElementById('quiz-container'); qc.innerHTML = '';
+                reviewMgr.currentCard.quiz.forEach((q, i) => {
+                    qc.innerHTML += `
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-4">
+                        <p class="font-bold text-lg mb-4">${i+1}. ${q.question}</p>
+                        <div class="space-y-2">
+                            ${(q.options||[]).map((opt, j) => `
+                                <label class="flex items-center space-x-3 p-3 rounded bg-gray-50 hover:bg-indigo-50 border border-gray-100 cursor-pointer transition">
+                                    <input type="radio" name="q${i}" value="${opt}" class="text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                                    <span class="text-gray-800">${opt}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                });
+            },
+            submitQuiz: async function() {
+                const userAnswers = [];
+                reviewMgr.currentCard.quiz.forEach((q, i) => {
+                    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+                    userAnswers.push({
+                        question: q.question,
+                        selected: selected ? selected.value : null,
+                        correct: q.answer
+                    });
+                });
+
+                const task = await reviewMgr.submitQuizScore(userAnswers);
+                this.activeTask = task.id;
+                appUI.toast("Quiz submitted for AI evaluation.", "info");
+                
+                // Show a "Processing" state in UI instead of just waiting
+                document.getElementById('quiz-container').innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                    <p class="text-lg">AI is evaluating your answers...</p>
+                </div>`;
+            },
+            showResult: async function(score, stage) {
+                document.getElementById('review-stage-1').classList.add('hidden');
+                document.getElementById('review-stage-2').classList.add('hidden');
+                document.getElementById('review-stage-3').classList.add('hidden');
+                document.getElementById('review-result').classList.remove('hidden');
+                document.getElementById('result-mastery').innerText = `${score}%`;
+                document.getElementById('result-stage').innerText = stage;
+                await reviewMgr.finishReview({ score, stage });
+            },
+            endReview: function() {
+                // Return to management if that was the "home" or just back to selector
+                document.getElementById('active-review').classList.add('hidden');
+                document.getElementById('review-selector').classList.remove('hidden');
+                appUI.switchTab('management-tab'); // Go back to management by default after finishing
+            }
+        };
+
+        window.onload = () => appUI.init();
+    </script>
 </body>
 </html>
