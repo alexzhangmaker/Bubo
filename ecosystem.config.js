@@ -44,6 +44,42 @@ module.exports = {
       env: {
         NODE_ENV: 'production'
       }
+    },
+    {
+      name: 'AccountingService',
+      script: 'server.js',
+      cwd: './AccountingService',
+      watch: true,
+      env: {
+        NODE_ENV: 'production'
+      }
+    },
+    {
+      name: 'MktService',
+      script: 'server.js',
+      cwd: './MktService',
+      watch: true,
+      env: {
+        NODE_ENV: 'production'
+      }
+    },
+    {
+      name: 'MktService-Cron',
+      script: 'jobMktDataUpdate.js',
+      cwd: './MktService',
+      watch: true,
+      env: {
+        NODE_ENV: 'production'
+      }
+    },
+    {
+      name: 'Portfolio-Aggr',
+      script: 'jobAggrPortfolio.js',
+      cwd: './AccountingService',
+      watch: true,
+      env: {
+        NODE_ENV: 'production'
+      }
     }
   ]
 };

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人账户资产管理服务 - 控制台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            border: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        input, select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.625rem;
+            border-radius: 0.5rem;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--primary); }
+
+        .hidden { display: none; }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Accounting Service 控制台</h1>
+            <div id="status" style="font-size: 0.875rem;"></div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('assets')">账户资产 (Assets)</button>
+            <button class="tab-btn" onclick="switchTab('deals')">交易历史 (Deal History)</button>
+            <button class="tab-btn" onclick="switchTab('portfolio')">投资组合汇总 (Portfolio)</button>
+        </div>
+
+        <!-- Assets Section -->
+        <div id="assets-section">
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">添加/更新资产</h2>
+                </div>
+                <form id="asset-form" onsubmit="saveAsset(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>代码 (Ticker)</label>
+                            <input type="text" id="asset-ticker" required placeholder="如: AAPL">
+                        </div>
+                        <div class="form-group">
+                            <label>账户 ID (Account ID)</label>
+                            <input type="text" id="asset-accountID" required placeholder="如: Broker-01">
+                        </div>
+                        <div class="form-group">
+                            <label>币种 (Currency)</label>
+                            <input type="text" id="asset-currency" required placeholder="USD">
+                        </div>
+                        <div class="form-group">
+                            <label>持有份额 (Shares)</label>
+                            <input type="number" step="0.0001" id="asset-shares" required>
+                        </div>
+                        <div class="form-group">
+                            <label>平均成本 (Cost Per Share)</label>
+                            <input type="number" step="0.0001" id="asset-costPerShare" required>
+                        </div>
+                        <div class="form-group">
+                            <label>资产类型 (Asset Type)</label>
+                            <select id="asset-type">
+                                <option value="股票">股票 (Stock)</option>
+                                <option value="债券">债券 (Bond)</option>
+                                <option value="基金">基金 (Fund)</option>
+                                <option value="其他">其他 (Other)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存资产数据</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">资产列表</h2>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <input type="text" id="filter-ticker" placeholder="搜索 Ticker..." style="width: 120px; font-size: 0.8rem;" oninput="applyFilters()">
+                        <input type="text" id="filter-account" placeholder="搜索 账户..." style="width: 120px; font-size: 0.8rem;" oninput="applyFilters()">
+                        <input type="text" id="filter-currency" placeholder="搜索 币种..." style="width: 100px; font-size: 0.8rem;" oninput="applyFilters()">
+                        <select id="filter-type" style="width: 100px; font-size: 0.8rem; padding: 0.4rem;" onchange="applyFilters()">
+                            <option value="">所有类型</option>
+                            <option value="股票">股票</option>
+                            <option value="债券">债券</option>
+                            <option value="基金">基金</option>
+                        </select>
+                        <button class="btn btn-success" onclick="exportAssets()">导出 CSV</button>
+                        <button class="btn btn-primary" onclick="loadAssets()">刷新数据</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="assets-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>AccountID</th>
+                                <th>Type</th>
+                                <th>Currency</th>
+                                <th>Shares</th>
+                                <th>Cost/Share</th>
+                                <th>Total Cost</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deals Section -->
+        <div id="deals-section" class="hidden">
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">添加交易记录</h2>
+                </div>
+                <form id="deal-form" onsubmit="saveDeal(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>日期时间</label>
+                            <input type="datetime-local" id="deal-datetime">
+                        </div>
+                        <div class="form-group">
+                            <label>代码 (Ticker)</label>
+                            <input type="text" id="deal-ticker" required>
+                        </div>
+                        <div class="form-group">
+                            <label>类型 (Action)</label>
+                            <select id="deal-action" required>
+                                <option value="buy">买入 (Buy)</option>
+                                <option value="sell">卖出 (Sell)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>份额 (Shares)</label>
+                            <input type="number" step="0.0001" id="deal-shares" required>
+                        </div>
+                        <div class="form-group">
+                            <label>价格 (Price)</label>
+                            <input type="number" step="0.0001" id="deal-price" required>
+                        </div>
+                        <div class="form-group">
+                            <label>币种 (Currency)</label>
+                            <input type="text" id="deal-currency" required placeholder="USD">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">添加记录</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">历史记录</h2>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <button class="btn btn-success" onclick="exportDeals()">导出 CSV</button>
+                        <button class="btn btn-primary" onclick="loadDeals()">刷新数据</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="deals-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Time</th>
+                                <th>Ticker</th>
+                                <th>Action</th>
+                                <th>Shares</th>
+                                <th>Price</th>
+                                <th>Currency</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Section -->
+        <div id="portfolio-section" class="hidden">
+            <div class="card glass">
+                <div class="section-header">
+                    <h2 class="section-title">投资组合汇总 (Portfolio Summary)</h2>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-success" id="btn-aggregate" onclick="triggerAggregation()">执行汇总计算</button>
+                        <button class="btn btn-success" onclick="exportPortfolio()">导出 CSV</button>
+                        <button class="btn btn-primary" onclick="loadPortfolio()">刷新数据</button>
+                    </div>
+                </div>
+                <div id="agg-status" style="margin-bottom: 1rem; font-size: 0.875rem; color: var(--primary);"></div>
+                <div class="table-container">
+                    <table id="portfolio-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Currency</th>
+                                <th>Shares</th>
+                                <th>Avg Cost</th>
+                                <th>Quote TTM</th>
+                                <th>ExRate (CNY)</th>
+                                <th>Total Cost (CNY)</th>
+                                <th>Profit/Loss (%)</th>
+                                <th>Last Aggregated</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
+            
+            document.getElementById('assets-section').classList.add('hidden');
+            document.getElementById('deals-section').classList.add('hidden');
+            document.getElementById('portfolio-section').classList.add('hidden');
+
+            if (tab === 'assets') {
+                document.getElementById('assets-section').classList.remove('hidden');
+                loadAssets();
+            } else if (tab === 'deals') {
+                document.getElementById('deals-section').classList.remove('hidden');
+                loadDeals();
+            } else {
+                document.getElementById('portfolio-section').classList.remove('hidden');
+                loadPortfolio();
+            }
+        }
+
+        async function loadAssets() {
+            try {
+                const res = await fetch(`${API_BASE}/assets`);
+                window._allAssets = await res.json();
+                applyFilters();
+            } catch (err) {
+                console.error('Failed to load assets', err);
+            }
+        }
+
+        function applyFilters() {
+            const tickerVal = document.getElementById('filter-ticker').value.toLowerCase();
+            const accountVal = document.getElementById('filter-account').value.toLowerCase();
+            const currencyVal = document.getElementById('filter-currency').value.toLowerCase();
+            const typeVal = document.getElementById('filter-type').value;
+
+            const filtered = (window._allAssets || []).filter(a => {
+                return (!tickerVal || a.ticker.toLowerCase().includes(tickerVal)) &&
+                       (!accountVal || a.accountID.toLowerCase().includes(accountVal)) &&
+                       (!currencyVal || a.currency.toLowerCase().includes(currencyVal)) &&
+                       (!typeVal || a.assetType === typeVal);
+            });
+
+            renderAssets(filtered);
+        }
+
+        function renderAssets(data) {
+                const tbody = document.querySelector('#assets-table tbody');
+                tbody.innerHTML = data.map(asset => `
+                    <tr>
+                        <td><b>${asset.ticker}</b></td>
+                        <td>${asset.accountID}</td>
+                        <td><span class="badge">${asset.assetType || '股票'}</span></td>
+                        <td>${asset.currency}</td>
+                        <td>${formatShares(asset.shares)}</td>
+                        <td>${formatAmount(asset.costPerShare)}</td>
+                        <td>${formatAmount(asset.shares * asset.costPerShare)}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteAsset('${asset.ticker}', '${asset.accountID}')">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+        }
+
+        async function saveAsset(e) {
+            e.preventDefault();
+            const asset = {
+                ticker: document.getElementById('asset-ticker').value,
+                accountID: document.getElementById('asset-accountID').value,
+                currency: document.getElementById('asset-currency').value,
+                shares: parseFloat(document.getElementById('asset-shares').value),
+                costPerShare: parseFloat(document.getElementById('asset-costPerShare').value),
+                assetType: document.getElementById('asset-type').value
+            };
+
+            const res = await fetch(`${API_BASE}/assets`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(asset)
+            });
+            if (res.ok) {
+                loadAssets();
+                e.target.reset();
+            }
+        }
+
+        async function deleteAsset(ticker, accountID) {
+            if (!confirm('确定删除该资产？')) return;
+            const res = await fetch(`${API_BASE}/assets/${ticker}/${accountID}`, { method: 'DELETE' });
+            if (res.ok) loadAssets();
+        }
+
+        async function loadDeals() {
+            try {
+                const res = await fetch(`${API_BASE}/deals`);
+                const data = await res.json();
+                const tbody = document.querySelector('#deals-table tbody');
+                tbody.innerHTML = data.map(deal => `
+                    <tr>
+                        <td>${deal.transactionID}</td>
+                        <td>${new Date(deal.datetime).toLocaleString()}</td>
+                        <td>${deal.ticker}</td>
+                        <td><span style="color: ${deal.action === 'buy' ? 'var(--success)' : 'var(--danger)'}">${deal.action.toUpperCase()}</span></td>
+                        <td>${formatShares(deal.shares)}</td>
+                        <td>${formatAmount(deal.price)}</td>
+                        <td>${deal.currency}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteDeal(${deal.transactionID})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load deals', err);
+            }
+        }
+
+        async function saveDeal(e) {
+            e.preventDefault();
+            const deal = {
+                datetime: document.getElementById('deal-datetime').value,
+                ticker: document.getElementById('deal-ticker').value,
+                action: document.getElementById('deal-action').value,
+                shares: parseFloat(document.getElementById('deal-shares').value),
+                price: parseFloat(document.getElementById('deal-price').value),
+                currency: document.getElementById('deal-currency').value
+            };
+
+            const res = await fetch(`${API_BASE}/deals`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deal)
+            });
+            if (res.ok) {
+                loadDeals();
+                e.target.reset();
+            }
+        }
+
+        async function deleteDeal(id) {
+            if (!confirm('确定删除该记录？')) return;
+            const res = await fetch(`${API_BASE}/deals/${id}`, { method: 'DELETE' });
+            if (res.ok) loadDeals();
+        }
+
+        function formatAmount(num) {
+            if (num === null || num === undefined || isNaN(num) || num === '') return '-';
+            return Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatShares(num) {
+            if (num === null || num === undefined || isNaN(num) || num === '') return '-';
+            return Math.round(num).toLocaleString('en-US');
+        }
+
+        function downloadCSV(data, filename) {
+            if (!data.length) return alert('没有可用数据进行导出');
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(header => {
+                    let val = row[header];
+                    if (val === null || val === undefined) val = '';
+                    val = String(val).replace(/"/g, '""'); // Escape quotes
+                    return `"${val}"`;
+                }).join(','))
+            ].join('\n');
+
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function exportAssets() {
+            try {
+                const res = await fetch(`${API_BASE}/assets`);
+                const data = await res.json();
+                downloadCSV(data, 'Assets_' + new Date().toISOString().split('T')[0] + '.csv');
+            } catch (err) { console.error(err); }
+        }
+
+        async function exportDeals() {
+            try {
+                const res = await fetch(`${API_BASE}/deals`);
+                const data = await res.json();
+                downloadCSV(data, 'Deals history_' + new Date().toISOString().split('T')[0] + '.csv');
+            } catch (err) { console.error(err); }
+        }
+
+        async function exportPortfolio() {
+            try {
+                const res = await fetch(`${API_BASE}/portfolio/data`);
+                const data = await res.json();
+                downloadCSV(data, 'Portfolio Summary_' + new Date().toISOString().split('T')[0] + '.csv');
+            } catch (err) { console.error(err); }
+        }
+
+        async function loadPortfolio() {
+            try {
+                const res = await fetch(`${API_BASE}/portfolio/data`);
+                const data = await res.json();
+                const tbody = document.querySelector('#portfolio-table tbody');
+                tbody.innerHTML = data.map(item => {
+                    const profitColor = item.earningInPercent >= 0 ? 'var(--success)' : 'var(--danger)';
+                    return `
+                        <tr>
+                            <td><b>${item.ticker}</b></td>
+                            <td>${item.currency}</td>
+                            <td>${formatShares(item.shares)}</td>
+                            <td>${formatAmount(item.costPerShare)}</td>
+                            <td>${formatAmount(item.quoteTTM)}</td>
+                            <td>${item.exchangeRate ? item.exchangeRate.toFixed(4) : '-'}</td>
+                            <td>${formatAmount(item.totalCostInCNY)}</td>
+                            <td style="color: ${profitColor}; font-weight: 600;">
+                                ${item.earningInPercent ? (item.earningInPercent >= 0 ? '+' : '') + item.earningInPercent.toFixed(2) + '%' : '-'}
+                            </td>
+                            <td style="font-size: 0.75rem; color: var(--text-muted);">
+                                ${item.datetime ? new Date(item.datetime).toLocaleString() : '-'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Failed to load portfolio', err);
+            }
+        }
+
+        async function triggerAggregation() {
+            const btn = document.getElementById('btn-aggregate');
+            const statusDiv = document.getElementById('agg-status');
+            
+            try {
+                btn.disabled = true;
+                statusDiv.innerText = '正在启动汇总计算...';
+                
+                const res = await fetch(`${API_BASE}/portfolio/aggregate`, { method: 'POST' });
+                const { requestId } = await res.json();
+                
+                // Poll for status
+                const poll = async () => {
+                    const sRes = await fetch(`${API_BASE}/portfolio/status/${requestId}`);
+                    const sData = await sRes.json();
+                    
+                    if (sData.status === 'completed') {
+                        statusDiv.innerText = '汇总计算已完成！';
+                        loadPortfolio();
+                        btn.disabled = false;
+                    } else if (sData.status === 'failed') {
+                        statusDiv.innerText = '错误: ' + sData.error;
+                        btn.disabled = false;
+                    } else {
+                        statusDiv.innerText = '计算进行中 (RequestID: ' + requestId + ')...';
+                        setTimeout(poll, 2000);
+                    }
+                };
+                poll();
+            } catch (err) {
+                statusDiv.innerText = '启动失败: ' + err.message;
+                btn.disabled = false;
+            }
+        }
+
+        // Set default datetime for deals
+        document.getElementById('deal-datetime').value = new Date().toISOString().slice(0, 16);
+        
+        // Initial load
+        loadAssets();
+    </script>
+</body>
+</html>

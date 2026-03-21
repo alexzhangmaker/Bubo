@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>证券行情数据服务 - 控制台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-fill-color: transparent;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title { font-size: 1.25rem; font-weight: 600; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+
+        label { font-size: 0.875rem; color: var(--text-muted); }
+
+        input, select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.625rem;
+            border-radius: 0.5rem;
+            outline: none;
+            width: 100%;
+        }
+
+        input:focus { border-color: var(--primary); }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            border: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+
+        .table-container { overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+
+        th {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+
+        .hidden { display: none; }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            background: var(--bg);
+            margin-right: 0.25rem;
+            border: 1px solid var(--border);
+        }
+
+        .price-up { color: var(--success); }
+        .price-down { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Mkt Service 控制台</h1>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('market')">行情数据 (Market Data)</button>
+            <button class="tab-btn" onclick="switchTab('securities')">证券信息 (Securities Info)</button>
+        </div>
+
+        <!-- Market Data Section -->
+        <div id="market-section">
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">添加/更新行情</h2>
+                </div>
+                <form id="market-form" onsubmit="saveMarketData(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>代码 (Ticker)</label>
+                            <input type="text" id="m-ticker" required placeholder="如: AAPL">
+                        </div>
+                        <div class="form-group">
+                            <label>Quote TTM</label>
+                            <input type="number" step="0.0001" id="m-quote" required>
+                        </div>
+                        <div class="form-group">
+                            <label>更新时间</label>
+                            <input type="datetime-local" id="m-datetime">
+                        </div>
+                        <div class="form-group">
+                            <label>涨跌额 (Change)</label>
+                            <input type="number" step="0.0001" id="m-change" required>
+                        </div>
+                        <div class="form-group">
+                            <label>涨跌幅 % (ChangeInPercent)</label>
+                            <input type="number" step="0.0001" id="m-percent" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存行情数据</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">实时行情列表</h2>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <button class="btn btn-warning" onclick="refreshAllMarketData()">刷新所有行情 (Background)</button>
+                        <button class="btn btn-success" onclick="exportMarketData()">导出 CSV</button>
+                        <button class="btn btn-primary" onclick="loadMarketData()">刷新显示</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="market-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>QuoteTTM</th>
+                                <th>Change</th>
+                                <th>Change %</th>
+                                <th>Time</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Securities Info Section -->
+        <div id="securities-section" class="hidden">
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">添加/更新证券信息</h2>
+                </div>
+                <form id="sec-form" onsubmit="saveSecInfo(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>代码 (Ticker)</label>
+                            <input type="text" id="s-ticker" required>
+                        </div>
+                        <div class="form-group">
+                            <label>公司名称 (Company Name)</label>
+                            <input type="text" id="s-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>上市国家 (Country)</label>
+                            <input type="text" id="s-country" required placeholder="US, CN, HK...">
+                        </div>
+                        <div class="form-group">
+                            <label>交易货币 (Currency)</label>
+                            <input type="text" id="s-currency" required placeholder="USD, CNY...">
+                        </div>
+                        <div class="form-group">
+                            <label>资产类型 (Asset Type)</label>
+                            <select id="s-type" required>
+                                <option value="Stock">股票 (Stock)</option>
+                                <option value="Bond">债券 (Bond)</option>
+                                <option value="ETF">ETF</option>
+                                <option value="Crypto">加密货币</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>标签 (Tags, 逗号分隔)</label>
+                            <input type="text" id="s-tags" placeholder="Tech, AI, Nasdaq100">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存证券信息</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">证券基本信息列表</h2>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <button class="btn btn-success" onclick="exportSecurities()">导出 CSV</button>
+                        <button class="btn btn-primary" onclick="loadSecInfo()">刷新数据</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="sec-table">
+                        <thead>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Name</th>
+                                <th>Country</th>
+                                <th>Currency</th>
+                                <th>Type</th>
+                                <th>Tags</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.toLowerCase().includes(tab));
+            if (btn) btn.classList.add('active');
+            
+            if (tab === 'market') {
+                document.getElementById('market-section').classList.remove('hidden');
+                document.getElementById('securities-section').classList.add('hidden');
+                loadMarketData();
+            } else {
+                document.getElementById('market-section').classList.add('hidden');
+                document.getElementById('securities-section').classList.remove('hidden');
+                loadSecInfo();
+            }
+        }
+
+        async function loadMarketData() {
+            try {
+                const res = await fetch(`${API_BASE}/market`);
+                const data = await res.json();
+                const tbody = document.querySelector('#market-table tbody');
+                tbody.innerHTML = data.map(m => `
+                    <tr>
+                        <td><b>${m.ticker}</b></td>
+                        <td>${formatAmount(m.QuoteTTM)}</td>
+                        <td class="${m.change >= 0 ? 'price-up' : 'price-down'}">${m.change >= 0 ? '+' : ''}${formatAmount(m.change)}</td>
+                        <td class="${m.changeInPercent >= 0 ? 'price-up' : 'price-down'}">${m.changeInPercent >= 0 ? '+' : ''}${m.changeInPercent}%</td>
+                        <td>${new Date(m.datetime).toLocaleString()}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteMarketData('${m.ticker}')">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        async function saveMarketData(e) {
+            e.preventDefault();
+            const data = {
+                ticker: document.getElementById('m-ticker').value,
+                QuoteTTM: parseFloat(document.getElementById('m-quote').value),
+                datetime: document.getElementById('m-datetime').value,
+                change: parseFloat(document.getElementById('m-change').value),
+                changeInPercent: parseFloat(document.getElementById('m-percent').value)
+            };
+            const res = await fetch(`${API_BASE}/market`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) { loadMarketData(); e.target.reset(); setDefaultTime(); }
+        }
+
+        async function deleteMarketData(ticker) {
+            if (!confirm('确定删除?')) return;
+            await fetch(`${API_BASE}/market/${ticker}`, { method: 'DELETE' });
+            loadMarketData();
+        }
+
+        async function loadSecInfo() {
+            try {
+                const res = await fetch(`${API_BASE}/securities`);
+                const data = await res.json();
+                const tbody = document.querySelector('#sec-table tbody');
+                tbody.innerHTML = data.map(s => {
+                    const tags = s.tags ? (s.tags.startsWith('[') ? JSON.parse(s.tags) : s.tags.split(',')) : [];
+                    return `
+                        <tr>
+                            <td><b>${s.ticker}</b></td>
+                            <td>${s.companyName}</td>
+                            <td>${s.listingCountry}</td>
+                            <td>${s.currency}</td>
+                            <td><span class="badge" style="background: var(--primary)">${s.assetType}</span></td>
+                            <td>${tags.map(t => `<span class="badge">${t}</span>`).join('')}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSecInfo('${s.ticker}')">删除</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        async function saveSecInfo(e) {
+            e.preventDefault();
+            const tags = document.getElementById('s-tags').value.split(',').map(t => t.trim()).filter(t => t);
+            const data = {
+                ticker: document.getElementById('s-ticker').value,
+                companyName: document.getElementById('s-name').value,
+                listingCountry: document.getElementById('s-country').value,
+                currency: document.getElementById('s-currency').value,
+                assetType: document.getElementById('s-type').value,
+                tags: tags
+            };
+            const res = await fetch(`${API_BASE}/securities`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) { loadSecInfo(); e.target.reset(); }
+        }
+
+        async function deleteSecInfo(ticker) {
+            if (!confirm('确定删除?')) return;
+            await fetch(`${API_BASE}/securities/${ticker}`, { method: 'DELETE' });
+            loadSecInfo();
+        }
+
+        function formatAmount(num) {
+            if (num === null || num === undefined || isNaN(num) || num === '') return '-';
+            return Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        async function refreshAllMarketData() {
+            if (!confirm('将开始后台更新所有行情，预计每秒处理一个。确定开始？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/market/refresh-all`, { method: 'POST' });
+                const result = await res.json();
+                alert(`任务已启动: ${result.message}\n总计: ${result.count} 个 Ticker。请稍后点击“刷新显示”查看进度。`);
+            } catch (err) { alert('启动失败'); console.error(err); }
+        }
+
+        function downloadCSV(data, filename) {
+            if (!data.length) return alert('没有可用数据进行导出');
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(header => {
+                    let val = row[header];
+                    if (val === null || val === undefined) val = '';
+                    val = String(val).replace(/"/g, '""'); // Escape quotes
+                    return `"${val}"`;
+                }).join(','))
+            ].join('\n');
+
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function exportMarketData() {
+            try {
+                const res = await fetch(`${API_BASE}/market`);
+                const data = await res.json();
+                downloadCSV(data, 'MarketData_' + new Date().toISOString().split('T')[0] + '.csv');
+            } catch (err) { console.error(err); }
+        }
+
+        async function exportSecurities() {
+            try {
+                const res = await fetch(`${API_BASE}/securities`);
+                const data = await res.json();
+                downloadCSV(data, 'SecuritiesInfo_' + new Date().toISOString().split('T')[0] + '.csv');
+            } catch (err) { console.error(err); }
+        }
+
+        function setDefaultTime() {
+            document.getElementById('m-datetime').value = new Date().toISOString().slice(0, 16);
+        }
+
+        // Init
+        setDefaultTime();
+        loadMarketData();
+    </script>
+</body>
+</html>
