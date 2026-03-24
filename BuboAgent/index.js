@@ -39,6 +39,11 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { createLogger, loggingMiddleware } = require('../shared/logger');
+const logger = createLogger('BuboAgent', __dirname);
+
 // 1. Initialize SQLite
 const db = new Database('bubo_agent.db');
 db.exec('CREATE TABLE IF NOT EXISTS memory (id TEXT PRIMARY KEY, content TEXT)');
@@ -520,7 +525,7 @@ app.use(helmet({
     },
 }));
 app.use(cors());
-app.use(morgan('dev'));
+app.use(loggingMiddleware(logger));
 app.use(express.json());
 
 app.post('/ask', async (req, res) => {

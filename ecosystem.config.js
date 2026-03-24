@@ -5,6 +5,7 @@ module.exports = {
       script: 'index.js',
       cwd: './BuboAgent',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.db', '*.sqlite'],
       env: {
         NODE_ENV: 'production'
       }
@@ -14,6 +15,7 @@ module.exports = {
       script: 'server.js',
       cwd: './BuboAIProxy',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.db', '*.sqlite'],
       env: {
         NODE_ENV: 'production'
       }
@@ -23,6 +25,7 @@ module.exports = {
       script: 'server.js',
       cwd: './BuboBots',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.db', '*.sqlite'],
       env: {
         NODE_ENV: 'production'
       }
@@ -32,6 +35,7 @@ module.exports = {
       script: 'server.js',
       cwd: './BuboDocMgr',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', 'uploads', '*.db', '*.sqlite'],
       env: {
         NODE_ENV: 'production'
       }
@@ -41,6 +45,7 @@ module.exports = {
       script: 'index.js',
       cwd: './BuboMemoMgr',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', 'cache', '*.db', '*.sqlite'],
       env: {
         NODE_ENV: 'production'
       }
@@ -50,6 +55,7 @@ module.exports = {
       script: 'server.js',
       cwd: './AccountingService',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.sqlite', '*.db'],
       env: {
         NODE_ENV: 'production'
       }
@@ -59,6 +65,7 @@ module.exports = {
       script: 'server.js',
       cwd: './MktService',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.sqlite', '*.db'],
       env: {
         NODE_ENV: 'production'
       }
@@ -68,6 +75,7 @@ module.exports = {
       script: 'jobMktDataUpdate.js',
       cwd: './MktService',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.sqlite', '*.db'],
       env: {
         NODE_ENV: 'production'
       }
@@ -77,8 +85,20 @@ module.exports = {
       script: 'jobAggrPortfolio.js',
       cwd: './AccountingService',
       watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.sqlite', '*.db'],
       env: {
         NODE_ENV: 'production'
+      }
+    },
+    {
+      name: 'analytics_service',
+      script: 'analytics_service.py',
+      cwd: './pyAnalytics',
+      interpreter: '/Users/zhangqing/Documents/GitHub/Bubo/pyAnalytics/venv/bin/python3',
+      watch: true,
+      ignore_watch: ['logs', 'node_modules', '*.sqlite', '*.db'],
+      env: {
+        PYTHONPATH: '.'
       }
     }
   ]

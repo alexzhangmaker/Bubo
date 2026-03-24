@@ -9,8 +9,12 @@ const scheduler = require('./scheduler');
 const app = express();
 const PORT = process.env.PORT || 3304;
 
+const { createLogger, loggingMiddleware } = require('../shared/logger');
+const logger = createLogger('BuboBots', __dirname);
+
 app.use(cors());
 app.use(express.json());
+app.use(loggingMiddleware(logger));
 app.use(express.static('public'));
 
 // Initialize Providers, DB, and Scheduler

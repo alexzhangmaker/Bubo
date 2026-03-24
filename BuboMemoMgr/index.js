@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import db from './db.js';
-import { syncMetadata, downloadAndCache, uploadToDrive } from './driveService.js';
+import { syncMetadata, downloadAndCache, uploadToDrive, deleteFromDrive } from './driveService.js';
 import cron from 'node-cron';
 import multer from 'multer';
 import path from 'path';
@@ -12,6 +12,12 @@ import fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
 
 dotenv.config();
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { createLogger, loggingMiddleware } = require('../shared/logger');
+const logger = createLogger('BuboMemoMgr', __dirname);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,7 +27,7 @@ app.use(helmet({
     contentSecurityPolicy: false, // For local dev and console.html simplicity
 }));
 app.use(cors());
-app.use(morgan('dev'));
+app.use(loggingMiddleware(logger));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -119,6 +125,39 @@ app.delete('/api/file/:uuid', async (req, res) => {
 
         db.prepare("UPDATE files SET cache_path = NULL, cache_status = 'pending' WHERE uuid = ?").run(req.params.uuid);
         res.json({ message: 'Local cache cleared' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * DELETE /api/card/:uuid
+ * Permanently delete a file (and its linked memo) from DB, disk, and Drive.
+ */
+app.delete('/api/card/:uuid', async (req, res) => {
+    try {
+        const file = db.prepare('SELECT * FROM files WHERE uuid = ?').get(req.params.uuid);
+        if (!file) return res.status(404).json({ error: 'File not found' });
+        
+        // 1. Delete from Drive
+        if (file.drive_id) {
+            try {
+                await deleteFromDrive(file.drive_id);
+            } catch(e) {
+                console.error('Failed to trash on drive', e);
+            }
+        }
+
+        // 2. Clear local cache
+        if (file.cache_path && await fs.exists(file.cache_path)) {
+            await fs.remove(file.cache_path);
+        }
+
+        // 3. Delete from SQLite
+        db.prepare('DELETE FROM memos WHERE content_uuid = ?').run(file.uuid);
+        db.prepare('DELETE FROM files WHERE uuid = ?').run(file.uuid);
+
+        res.json({ message: 'Card completely deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -461,72 +461,11 @@
     </div>
 
     <script>
-        // --- Sample Data ---
-        const SAMPLE_PROJECTS = [
-            { id: 'financial', name: '汤森路透财报分析', icon: 'bar-chart-3' },
-            { id: 'm-and-a', name: '并购与估值', icon: 'briefcase' },
-            { id: 'tech-stack', name: '技术架构演进', icon: 'code-2' }
-        ];
-
-        const SAMPLE_CARDS = [
-            {
-                id: 1,
-                projectId: 'financial',
-                question: '这家公司的资产负债率是多少？',
-                answer: `以下是对汤森路透（Thomson Reuters）2025年底资产负债状况的深入拆解：
-
-### 1. 资产负债率是多少？
-截至2025年12月31日，公司的总资产为 **179.40 亿美元**，总负债为 **60.26 亿美元**。
-简单计算得出的**账面资产负债率约为 33.59%**。这对于一家大型跨国企业来说是一个非常健康且偏低的负债水平。
-*   **补充指标**：公司管理层和评级机构更看重的杠杆指标是“净债务与调整后EBITDA的比率”。2025年底该比率仅为 **0.6倍**（甚至远低于公司自己设定的2.5倍上限目标），说明公司账面现金充裕，实际偿债压力极小。
-*(数据出处：Q4财报新闻稿 第13页 资产负债表，第20页 净债务计算)*`,
-                tags: ['财务分析', '资产负债'],
-                timestamp: '2025-12-31T10:00:00Z',
-                source: 'Q4财报新闻稿'
-            },
-            {
-                id: 2,
-                projectId: 'financial',
-                question: '有没有哪些大额资产项目需要注意（比如过高的商誉、应收账款、存货）？',
-                answer: `### 2. 哪些大额资产项目需要注意？（商誉、应收、存货）
-作为一家“轻资产”的专业软件和数据公司，它的资产结构与传统制造业完全不同：
-
-*   **过高的商誉和无形资产（占比超70%，需重点注意）**：
-    *   **商誉（Goodwill）**：高达 **79.13 亿美元**，相比去年的 72.62 亿美元进一步增加。
-    *   **无形资产及软件**：其他可识别无形资产为 31.02 亿美元，软件资产为 16.45 亿美元。
-    *   **分析**：这三项相加高达 **126.6 亿美元**，占了总资产（179.4 亿美元）的 **70.5%**。对于软件订阅公司来说这很常见，因为公司长年通过大举收购（例如2025年初收购SafeSend等）来扩张，溢价部分全变成了商誉。这也是未来最大的潜在隐患：一旦被收购的业务表现不及预期，可能会面临巨额的商誉减值（Impairment），从而导致账面利润大幅缩水。
-*   **应收账款（处于健康水平）**：
-    *   2025年底贸易及其他应收账款为 **11.43 亿美元**（去年为 10.87 亿美元）。
-    *   **分析**：仅占总资产的 6.4% 左右。对比其全年约 74.76 亿美元的总收入，应收账款周转非常健康，没有产生大量的坏账堆积风险。
-*   **存货（几乎没有）**：
-    *   在2025年的资产负债表主项目上，**甚至没有单列“存货”这一项**。
-    *   **分析**：除了一小部分正在萎缩的传统纸质印刷出版物外，公司的产品全是云端软件（如Westlaw）和数据源，卖的是账号权限，因此不存在传统意义上的产品滞销或库存积压风险。
-*(数据出处：Q4财报新闻稿 第13页)*`,
-                tags: ['资产结构', '风险预警'],
-                timestamp: '2025-12-31T11:00:00Z',
-                source: 'Q4财报新闻稿'
-            },
-            {
-                id: 3,
-                projectId: 'financial',
-                question: '合同负债（预收款）跟去年比变化多大？',
-                answer: `### 3. 合同负债（预收款/递延收入）跟去年比变化多大？
-汤森路透账面上的合同负债被称为**“递延收入”（Deferred revenue）**。
-*   2025年底，递延收入为 **12.51 亿美元**。
-*   2024年底，递延收入为 **10.62 亿美元**。
-*   **变化**：同比增长了 **1.89 亿美元**，增幅高达 **17.8%**。
-
-**投资视角的解读**：
-对于按年卖软件订阅的公司来说，**递延收入大幅增加是一个极好的信号**。这笔钱是客户为了未来一年的使用权限**提前打给公司的现金**。因为服务还没提供完，会计准则上算作“负债”，但这并不是真正需要掏钱还的债，而是未来的“保底收入”。递延收入的两位数高增长，说明公司在2025年底的新签订单（预订量）非常强劲，为2026年的收入增长锁定了基本盘。
-*(数据出处：Q4财报新闻稿 第13页)*`,
-                tags: ['递延收入', '业绩预警'],
-                timestamp: '2025-12-31T12:00:00Z',
-                source: 'Q4财报新闻稿'
-            }
-        ];
+        const API_BASE = '/api';
 
         // --- State ---
-        let cards = SAMPLE_CARDS;
+        let allMemos = [];
+        let projects = [];
         let activeProject = null;
         let searchQuery = '';
         let activeFilter = 'all'; // 'all', 'timeline', 'starred'
@@ -540,15 +479,44 @@
         const modalClose = document.getElementById('modal-close');
 
         // --- Functions ---
-        function init() {
-            renderProjects();
-            renderCards();
+        async function init() {
+            await fetchMemos();
             setupEventListeners();
             lucide.createIcons();
         }
 
+        async function fetchMemos() {
+            try {
+                const res = await fetch(`${API_BASE}/metadata`);
+                const data = await res.json();
+                allMemos = data.map(m => ({
+                    id: m.uuid,
+                    question: m.memo_title || m.name,
+                    tags: (m.memo_tags || '').split(',').map(t => t.trim()).filter(Boolean),
+                    timestamp: m.created_at,
+                    size: m.size,
+                    starred: false // Could derive from a specific tag or DB field
+                }));
+
+                // Extract unique tags as projects
+                const tagSet = new Set();
+                allMemos.forEach(m => m.tags.forEach(t => tagSet.add(t)));
+                projects = Array.from(tagSet).sort().map(t => ({
+                    id: t,
+                    name: t,
+                    icon: 'tag'
+                }));
+
+                renderProjects();
+                renderCards();
+            } catch (err) {
+                console.error('Failed to load memos:', err);
+                cardGrid.innerHTML = `<div class="empty-state"><p style="color:red;">Error loading data</p></div>`;
+            }
+        }
+
         function renderProjects() {
-            projectList.innerHTML = SAMPLE_PROJECTS.map(p => `
+            projectList.innerHTML = projects.map(p => `
                 <div class="nav-item ${activeProject === p.id ? 'active' : ''}" onclick="filterByProject('${p.id}')">
                     <i data-lucide="${p.icon}" size="18"></i> ${p.name}
                 </div>
@@ -556,11 +524,18 @@
             lucide.createIcons();
         }
 
+        function formatBytes(bytes) {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+        }
+
         function renderCards() {
-            let filteredCards = [...cards].filter(c => {
-                const matchesProject = !activeProject || c.projectId === activeProject;
+            let filteredCards = [...allMemos].filter(c => {
+                const matchesProject = !activeProject || c.tags.includes(activeProject);
                 const matchesSearch = c.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    c.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
                 return matchesProject && matchesSearch;
             });
@@ -580,13 +555,16 @@
                 `;
             } else {
                 cardGrid.innerHTML = filteredCards.map(c => `
-                    <div class="card" onclick="openCard(${c.id})">
+                    <div class="card" onclick="openCard('${c.id}')">
                         <div class="card-header">
-                            <div class="card-tag">${c.tags[0]}</div>
+                            <div class="card-tag">${c.tags[0] || 'Uncategorized'}</div>
                             <span class="card-time">${new Date(c.timestamp).toLocaleDateString()}</span>
                         </div>
                         <div class="card-question">${c.question}</div>
-                        <div class="card-preview">${marked.parse(c.answer)}</div>
+                        <div class="card-preview">
+                            <i data-lucide="file-text" size="14" style="display:inline; vertical-align:middle; opacity:0.7"></i> 
+                            Click to load content (${formatBytes(c.size)})
+                        </div>
                     </div>
                 `).join('');
             }
@@ -602,7 +580,7 @@
 
         function updateViewTitle() {
             if (activeProject) {
-                const project = SAMPLE_PROJECTS.find(p => p.id === activeProject);
+                const project = projects.find(p => p.id === activeProject);
                 viewTitle.textContent = project.name;
             } else {
                 switch (activeFilter) {
@@ -613,17 +591,31 @@
             }
         }
 
-        function openCard(id) {
-            const card = cards.find(c => c.id === id);
+        async function openCard(id) {
+            const card = allMemos.find(c => c.id === id);
             if (!card) return;
 
             document.getElementById('modal-tags').innerHTML = card.tags.map(t => `<span class="card-tag" style="margin-right: 8px">${t}</span>`).join('');
             document.getElementById('modal-question').textContent = card.question;
-            document.getElementById('modal-answer').innerHTML = marked.parse(card.answer);
-            document.getElementById('modal-meta').textContent = `出处：${card.source} | 时间：${new Date(card.timestamp).toLocaleString()}`;
-
+            document.getElementById('modal-meta').textContent = `Size: ${formatBytes(card.size)} | 时间：${new Date(card.timestamp).toLocaleString()}`;
+            
+            const contentDiv = document.getElementById('modal-answer');
+            contentDiv.innerHTML = '<p style="color: var(--text-muted);"><i data-lucide="loader-2" class="lucide-spin"></i> Loading content...</p>';
+            
             cardModal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`${API_BASE}/file/${id}/content`);
+                if (!res.ok) throw new Error('Failed to load content');
+                const text = await res.text();
+                // Check if it's markdown or pdf (basic check based on extension logic or just render text)
+                contentDiv.innerHTML = marked.parse(text);
+            } catch (err) {
+                contentDiv.innerHTML = `<p style="color: var(--danger);"><i data-lucide="alert-circle"></i> Error loading document content</p>`;
+            }
+            lucide.createIcons();
         }
 
         function closeCard() {

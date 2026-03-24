@@ -475,7 +475,7 @@
                             <button class="action-icon-btn" onclick="downloadContent('${memo.uuid}')" title="Read Content">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                             </button>
-                            <button class="action-icon-btn" onclick="deleteLocalCache('${memo.uuid}')" title="Clear Cache">
+                            <button class="action-icon-btn" onclick="deleteMemo('${memo.uuid}')" title="Delete Card">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             </button>
                         </div>
@@ -518,6 +518,12 @@
 
         async function deleteLocalCache(uuid) {
             await fetch(`${API_BASE}/file/${uuid}`, { method: 'DELETE' });
+            await refreshData();
+        }
+
+        async function deleteMemo(uuid) {
+            if (!confirm('Are you sure you want to permanently delete this knowledge card?')) return;
+            await fetch(`${API_BASE}/card/${uuid}`, { method: 'DELETE' });
             await refreshData();
         }
 

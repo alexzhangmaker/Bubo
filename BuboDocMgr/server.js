@@ -11,9 +11,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(__dirname, 'uploads');
 
+const { createLogger, loggingMiddleware } = require('../shared/logger');
+const logger = createLogger('BuboDocMgr', __dirname);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(loggingMiddleware(logger));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Storage configuration

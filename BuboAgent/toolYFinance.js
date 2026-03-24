@@ -37,6 +37,21 @@ async function _fetchYahooData(ticker, crumb, cookies) {
 }
 
 export async function API_FetchStockMeta(ticker) {
+    const BOND_TICKERS = ['US-GOVT', 'US-GOVT-2'];
+    if (BOND_TICKERS.includes(ticker.toUpperCase())) {
+        return {
+            symbol: ticker.toUpperCase(),
+            name: 'US Government Bond',
+            asset_type: 'BOND',
+            currency: 'USD',
+            exchange: 'Virtual',
+            price: 1.0,
+            change: 0,
+            percent: 0,
+            updated: new Date().toLocaleString()
+        };
+    }
+
     const { crumb, cookies } = await _getYahooCrumbAndCookies();
     let mktData = await _fetchYahooData(ticker, crumb, cookies);
     if (!mktData.quoteResponse.result || mktData.quoteResponse.result.length === 0) {
@@ -67,6 +82,17 @@ export async function API_FetchStockMeta(ticker) {
 }
 
 export async function API_FetchQuote(ticker) {
+    const BOND_TICKERS = ['US-GOVT', 'US-GOVT-2'];
+    if (BOND_TICKERS.includes(ticker.toUpperCase())) {
+        return {
+            symbol: ticker.toUpperCase(),
+            price: 1.0,
+            currency: 'USD',
+            change: 0,
+            percent: 0
+        };
+    }
+
     const { crumb, cookies } = await _getYahooCrumbAndCookies();
     let mktData = await _fetchYahooData(ticker, crumb, cookies);
     if (!mktData.quoteResponse.result || mktData.quoteResponse.result.length === 0) {

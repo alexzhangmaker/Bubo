@@ -169,3 +169,24 @@ export async function uploadToDrive(uuid, filePath, fileName, mimeType) {
         throw error;
     }
 }
+
+/**
+ * Trashes a file on Google Drive to permanently delete it from the system.
+ */
+export async function deleteFromDrive(driveId) {
+    if (!IS_SYNC_ENABLED) {
+        console.log(`ℹ️ Cloud sync is disabled. Skip delete for ${driveId}`);
+        return;
+    }
+    try {
+        console.log(`🗑️ Trashing ${driveId} on Google Drive...`);
+        await drive.files.update({
+            fileId: driveId,
+            resource: { trashed: true }
+        });
+        console.log(`✅ File trashed on Drive: ${driveId}`);
+    } catch (error) {
+        console.error('❌ Error trashing on Drive:', error.message);
+        throw error;
+    }
+}

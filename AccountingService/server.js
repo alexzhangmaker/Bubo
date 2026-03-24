@@ -8,8 +8,12 @@ const app = express();
 const port = 3008; // Choose a port that doesn't conflict
 const DB_PATH = path.join(__dirname, 'database.sqlite');
 
+const { createLogger, loggingMiddleware } = require('../shared/logger');
+const logger = createLogger('AccountingService', __dirname);
+
 app.use(cors());
 app.use(bodyParser.json());
+app.use(loggingMiddleware(logger));
 app.use(express.static(__dirname));
 
 // Database initialization
@@ -38,8 +42,22 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
                 action TEXT,
                 shares REAL,
                 price REAL,
-                currency TEXT
+                currency TEXT,
+                accountID TEXT,
+                status TEXT DEFAULT '待提交'
             )`);
+
+            // Alter table to add columns if they don't exist
+            db.all("PRAGMA table_info(DealHistory)", (err, rows) => {
+                if (err) return;
+                const cols = rows.map(r => r.name);
+                if (!cols.includes('accountID')) {
+                    db.run("ALTER TABLE DealHistory ADD COLUMN accountID TEXT");
+                }
+                if (!cols.includes('status')) {
+                    db.run("ALTER TABLE DealHistory ADD COLUMN status TEXT DEFAULT '待提交'");
+                }
+            });
 
             // PortfolioAggr Table
             db.run(`CREATE TABLE IF NOT EXISTS PortfolioAggr (
@@ -102,10 +120,10 @@ app.get('/api/deals', (req, res) => {
 
 // Add new deal
 app.post('/api/deals', (req, res) => {
-    const { datetime, ticker, action, shares, price, currency } = req.body;
-    const sql = `INSERT INTO DealHistory (datetime, ticker, action, shares, price, currency) 
-                 VALUES (?, ?, ?, ?, ?, ?)`;
-    db.run(sql, [datetime || new Date().toISOString(), ticker, action, shares, price, currency], function(err) {
+    const { datetime, ticker, action, shares, price, currency, accountID } = req.body;
+    const sql = `INSERT INTO DealHistory (datetime, ticker, action, shares, price, currency, accountID, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, '待提交')`;
+    db.run(sql, [datetime || new Date().toISOString(), ticker, action, shares, price, currency, accountID], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Deal added', id: this.lastID });
     });
@@ -117,6 +135,65 @@ app.delete('/api/deals/:id', (req, res) => {
     db.run('DELETE FROM DealHistory WHERE transactionID = ?', [id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Deal deleted', changes: this.changes });
+    });
+});
+
+// Submit deal to update portfolio
+app.post('/api/deals/:id/submit', (req, res) => {
+    const { id } = req.params;
+    db.get('SELECT * FROM DealHistory WHERE transactionID = ?', [id], (err, deal) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!deal) return res.status(404).json({ error: 'Deal not found' });
+        if (deal.status !== '待提交') {
+            return res.status(400).json({ error: `Cannot submit. Current status is ${deal.status}` });
+        }
+
+        db.get('SELECT * FROM Assets WHERE ticker = ? AND accountID = ?', [deal.ticker, deal.accountID], (err, asset) => {
+            if (err) return res.status(500).json({ error: err.message });
+
+            if (deal.action === 'buy') {
+                if (asset) {
+                    // Weighted average cost formula
+                    const newShares = asset.shares + deal.shares;
+                    const newCost = ((asset.shares * asset.costPerShare) + (deal.shares * deal.price)) / newShares;
+                    
+                    db.run('UPDATE Assets SET shares = ?, costPerShare = ? WHERE ticker = ? AND accountID = ?',
+                        [newShares, newCost, deal.ticker, deal.accountID],
+                        (err) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
+                            res.json({ message: 'Deal submitted and added to existing asset' });
+                        });
+                } else {
+                    // Insert new asset
+                    db.run('INSERT INTO Assets (ticker, accountID, currency, shares, costPerShare, assetType) VALUES (?, ?, ?, ?, ?, ?)',
+                        [deal.ticker, deal.accountID, deal.currency, deal.shares, deal.price, '股票'],
+                        (err) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
+                            res.json({ message: 'Deal submitted and new asset created' });
+                        });
+                }
+            } else if (deal.action === 'sell') {
+                if (!asset || asset.shares < deal.shares) {
+                    // Reject: Suspicious transaction
+                    db.run("UPDATE DealHistory SET status = '可疑' WHERE transactionID = ?", [id], (err) => {
+                        if (err) return res.status(500).json({ error: err.message });
+                        res.status(400).json({ error: 'Transaction suspicious: Not enough shares or asset does not exist.' });
+                    });
+                } else {
+                    // Update shares (keeping cost basis untouched for straightforward average tracking)
+                    const newShares = asset.shares - deal.shares;
+                    db.run('UPDATE Assets SET shares = ? WHERE ticker = ? AND accountID = ?', 
+                        [newShares, deal.ticker, deal.accountID], 
+                        (err) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
+                            res.json({ message: 'Deal submitted and shares deducted' });
+                        });
+                }
+            }
+        });
     });
 });
 

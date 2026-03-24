@@ -283,6 +283,10 @@
                             <input type="text" id="deal-ticker" required>
                         </div>
                         <div class="form-group">
+                            <label>账户 ID (Account ID)</label>
+                            <input type="text" id="deal-accountID" required>
+                        </div>
+                        <div class="form-group">
                             <label>类型 (Action)</label>
                             <select id="deal-action" required>
                                 <option value="buy">买入 (Buy)</option>
@@ -321,10 +325,12 @@
                                 <th>ID</th>
                                 <th>Time</th>
                                 <th>Ticker</th>
+                                <th>AccountID</th>
                                 <th>Action</th>
                                 <th>Shares</th>
                                 <th>Price</th>
                                 <th>Currency</th>
+                                <th>Status</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -473,11 +479,14 @@
                         <td>${deal.transactionID}</td>
                         <td>${new Date(deal.datetime).toLocaleString()}</td>
                         <td>${deal.ticker}</td>
+                        <td>${deal.accountID || '-'}</td>
                         <td><span style="color: ${deal.action === 'buy' ? 'var(--success)' : 'var(--danger)'}">${deal.action.toUpperCase()}</span></td>
                         <td>${formatShares(deal.shares)}</td>
                         <td>${formatAmount(deal.price)}</td>
                         <td>${deal.currency}</td>
-                        <td>
+                        <td>${renderDealStatus(deal.status)}</td>
+                        <td style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary btn-sm" ${deal.status !== '待提交' ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''} onclick="submitDeal(${deal.transactionID})">提交</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteDeal(${deal.transactionID})">删除</button>
                         </td>
                     </tr>
@@ -492,6 +501,7 @@
             const deal = {
                 datetime: document.getElementById('deal-datetime').value,
                 ticker: document.getElementById('deal-ticker').value,
+                accountID: document.getElementById('deal-accountID').value,
                 action: document.getElementById('deal-action').value,
                 shares: parseFloat(document.getElementById('deal-shares').value),
                 price: parseFloat(document.getElementById('deal-price').value),
@@ -513,6 +523,33 @@
             if (!confirm('确定删除该记录？')) return;
             const res = await fetch(`${API_BASE}/deals/${id}`, { method: 'DELETE' });
             if (res.ok) loadDeals();
+        }
+
+        async function submitDeal(id) {
+            if (!confirm('确定要提交此交易吗？提交后将更新该账户的资产数据。')) return;
+            try {
+                const res = await fetch(`${API_BASE}/deals/${id}/submit`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message);
+                    loadDeals();
+                    loadAssets(); // Refresh assets in background
+                } else {
+                    alert('提交失败: ' + data.error);
+                    loadDeals(); // Reload to show '可疑' status
+                }
+            } catch (err) {
+                console.error(err);
+                alert('请求异常');
+            }
+        }
+
+        function renderDealStatus(status) {
+            const s = status || '待提交';
+            if (s === '待提交') return `<span style="color: #60a5fa; font-weight: 500;">${s}</span>`;
+            if (s === '已提交' || s === '已归档') return `<span style="color: var(--success); font-weight: 500;">${s}</span>`;
+            if (s === '可疑') return `<span style="color: var(--danger); font-weight: 700;">${s}</span>`;
+            return `<span>${s}</span>`;
         }
 
         function formatAmount(num) {
@@ -568,7 +605,33 @@
             try {
                 const res = await fetch(`${API_BASE}/portfolio/data`);
                 const data = await res.json();
-                downloadCSV(data, 'Portfolio Summary_' + new Date().toISOString().split('T')[0] + '.csv');
+                
+                // Fetch securities info from MktService (assumed port 3009)
+                let secMap = {};
+                try {
+                    const secRes = await fetch('http://localhost:3009/api/securities');
+                    const secData = await secRes.json();
+                    secData.forEach(s => { secMap[s.ticker] = s; });
+                } catch (e) { console.warn('MktService securities info fetch failed', e); }
+
+                const enriched = data.map(item => {
+                    const info = secMap[item.ticker] || {};
+                    return {
+                        ticker: item.ticker,
+                        name: info.companyName || '-',
+                        country: info.listingCountry || '-',
+                        type: info.assetType || '-',
+                        currency: item.currency,
+                        shares: item.shares,
+                        costPerShare: item.costPerShare,
+                        quoteTTM: item.quoteTTM,
+                        totalCostCNY: item.totalCostInCNY,
+                        earningPercent: item.earningInPercent,
+                        lastAggregated: item.datetime
+                    };
+                });
+
+                downloadCSV(enriched, 'Portfolio Summary_' + new Date().toISOString().split('T')[0] + '.csv');
             } catch (err) { console.error(err); }
         }
 

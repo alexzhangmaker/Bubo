@@ -6,8 +6,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { API_FetchQuote, API_FetchExRate } from './toolYFinance.js';
 
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const { createLogger, loggingMiddleware } = require('../shared/logger');
+const logger = createLogger('MktService', __dirname);
 
 const app = express();
 const port = 3009;
@@ -15,6 +21,7 @@ const DB_PATH = path.join(__dirname, 'database.sqlite');
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(loggingMiddleware(logger));
 app.use(express.static(__dirname));
 
 const db = new sqlite3.Database(DB_PATH, (err) => {

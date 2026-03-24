@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubo Analytics – 投资组合历史分析</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
+
+    <!-- Frappe DataTable dependencies -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-datatable@1.1.1/dist/frappe-datatable.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/clusterize.js@0.19.0/clusterize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/frappe-datatable@1.1.1/dist/frappe-datatable.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #10b981;
+            --accent-dim: rgba(16,185,129,0.1);
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --sidebar: #f1f5f9;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --up: #059669;
+            --down: #dc2626;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* ── Frappe DataTable – Premium Light Skin ─────────────────── */
+        .datatable, .dt-scrollable, .dt-body { background: var(--surface) !important; }
+
+        .dt-header, .dt-header table { background: #fdfdfd !important; border-color: var(--border) !important; }
+        .dt-cell[data-is-header] { background: #fdfdfd !important; border-bottom: 2px solid var(--border) !important; }
+        .dt-cell[data-is-header] .dt-cell__content { 
+            color: var(--primary) !important; 
+            font-size: 0.75rem; 
+            text-transform: uppercase; 
+            letter-spacing: .05em; 
+            font-weight: 700 !important; 
+            display: flex !important;
+            align-items: center;
+            justify-content: flex-start !important;
+            text-align: left !important;
+        }
+
+        .dt-cell { color: var(--text) !important; border-color: var(--border) !important; background: var(--surface) !important; font-size: 0.82rem; height: 44px !important; }
+        .dt-row:hover .dt-cell { background: #f9fafb !important; }
+
+        /* Filter row */
+        .dt-row[data-is-filter] { display: table-row !important; }
+        .dt-row[data-is-filter] .dt-cell { background: #f8fafc !important; border-bottom: 1px solid var(--border) !important; }
+        .dt-filter {
+            background: #ffffff !important;
+            color: var(--text) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            width: 90%;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .dt-filter:focus { border-color: var(--accent) !important; outline: none; box-shadow: 0 0 0 2px var(--accent-dim); }
+
+        /* Sort arrows */
+        .sort-indicator, .dt-cell .sort-indicator {
+            color: var(--accent) !important;
+            margin-left: auto !important;
+            padding-left: 8px;
+        }
+        .dt-dropdown { background: var(--surface) !important; border: 1px solid var(--border) !important; box-shadow: var(--card-shadow); }
+        .dt-dropdown__list-item { color: var(--text) !important; font-size: 0.8rem; }
+        .dt-dropdown__list-item:hover { background: #f1f5f9 !important; }
+
+        /* Row resize handle */
+        .dt-cell__resize-handle { 
+            background: var(--accent) !important; 
+            width: 3px !important; 
+            right: 0 !important; 
+            opacity: 0; 
+            transition: opacity 0.2s;
+            cursor: col-resize;
+            height: 100% !important;
+            top: 0 !important;
+        }
+        .dt-cell:hover .dt-cell__resize-handle { opacity: 0.6; }
+        .dt-cell__resize-handle:hover { opacity: 1 !important; width: 5px !important; }
+
+        /* ── Layout ── */
+        .shell { display: flex; min-height: 100vh; }
+
+        .sidebar {
+            width: 240px; flex-shrink: 0;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            padding: 2rem 1.25rem; gap: 0.75rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .sidebar.collapsed {
+            width: 0;
+            padding-left: 0;
+            padding-right: 0;
+            border-right: none;
+        }
+
+        .logo {
+            font-size: 1.25rem; font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 2.5rem; letter-spacing: -0.03em;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+
+        .nav-item {
+            padding: 0.75rem 1rem; border-radius: 0.75rem; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600; color: var(--muted);
+            transition: all 0.2s ease; display: flex; align-items: center; gap: 0.75rem;
+        }
+        .nav-item:hover { background: #e2e8f0; color: var(--primary); }
+        .nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(15,23,42,0.15); }
+
+        .toggle-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--primary);
+            font-size: 1.1rem; transition: all 0.2s;
+            box-shadow: var(--card-shadow);
+        }
+        .toggle-btn:hover { background: #f8fafc; transform: scale(1.05); }
+
+        .main { flex: 1; overflow-y: auto; padding: 2.5rem 3rem; }
+        .page { display: none; } .page.active { display: block; }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem; overflow: hidden;
+            box-shadow: var(--card-shadow);
+        }
+        .card-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            background: #fafafa;
+        }
+        .card-title { font-size: 0.9rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* ── Stats ── */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem; margin-bottom: 2rem;
+        }
+        .stat {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 1.25rem; padding: 1.5rem 2rem;
+            box-shadow: var(--card-shadow);
+        }
+        .stat label { font-size: 0.8rem; color: var(--muted); font-weight: 600; display: block; margin-bottom: 0.5rem; }
+        .stat .val { font-size: 1.75rem; font-weight: 800; color: var(--primary); letter-spacing: -0.02em; }
+
+        /* ── Controls ── */
+        .ctrl-bar { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 2rem; }
+        select {
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); padding: 0.6rem 1.25rem;
+            border-radius: 0.75rem; font-size: 0.9rem; font-weight: 500;
+            outline: none; cursor: pointer; box-shadow: var(--card-shadow);
+        }
+
+        /* ── SQL Editor ── */
+        .sql-editor {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;
+            background: #f8fafc; color: #1e293b;
+            border: 1px solid var(--border); border-radius: 0.75rem;
+            padding: 1.25rem; width: 100%; min-height: 160px; resize: vertical;
+            outline: none; line-height: 1.6;
+        }
+        .sql-editor:focus { border-color: var(--accent); background: #fff; }
+
+        .run-btn {
+            padding: 0.75rem 1.75rem; background: var(--primary);
+            color: #fff; border: none; border-radius: 0.75rem;
+            font-size: 0.9rem; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(15,23,42,0.1);
+        }
+        .run-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,23,42,0.15); }
+        .run-btn:active { transform: translateY(0); }
+        .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .query-meta { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+
+        /* ── Loading overlay ── */
+        #init-overlay {
+            position: fixed; inset: 0; background: #fff; z-index: 999;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 1.5rem;
+        }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid #f1f5f9; border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .up { color: var(--up); } .down { color: var(--down); }
+        .ticker-badge {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700;
+            color: var(--primary); background: #f1f5f9;
+            padding: 0.25rem 0.6rem; border-radius: 0.4rem; display: inline-block;
+        }
+        .type-badge {
+            font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px;
+            background: #f1f5f9; color: var(--muted); display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+<div id="init-overlay">
+    <div class="spinner"></div>
+    <p style="color:var(--muted);font-weight:600;font-size:1rem;">正在初始化分析引擎…</p>
+</div>
+
+<div class="shell" style="opacity:0;transition:opacity .4s ease-out" id="app">
+
+    <aside class="sidebar">
+        <div class="logo">🚀 Bubo Analytics</div>
+        <div class="nav-item active" onclick="switchPage('dashboard', this)">🏠 投资组合</div>
+        <div class="nav-item" onclick="switchPage('sql', this)">🦆 SQL 分析台</div>
+    </aside>
+
+    <main class="main">
+        <div style="margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem;">
+            <button class="toggle-btn" onclick="toggleSidebar()" title="切换侧边栏">☰</button>
+            <h1 id="page-title" style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">投资组合概览</h1>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div class="page active" id="page-dashboard">
+            <div class="ctrl-bar">
+                <label style="color:var(--muted);font-weight:600;font-size:.9rem">选择镜像日期</label>
+                <select id="date-select" onchange="loadDashboard(this.value)"></select>
+                <span id="loading-indicator" style="color:var(--accent);font-weight:600;font-size:.85rem;display:none">处理中…</span>
+                <button onclick="syncSnapshot(event)" style="padding: 0.5rem 1rem; border-radius: 0.5rem; background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; margin-left: auto; box-shadow: var(--card-shadow); transition: transform 0.2s;">+ 抓取最新快照</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat"><label>持仓总市值 (CNY)</label><div class="val" id="s-total-value">—</div></div>
+                <div class="stat"><label>累计投资成本 (CNY)</label><div class="val" id="s-total-cost">—</div></div>
+                <div class="stat"><label>综合回报率</label><div class="val" id="s-profit-pct">—</div></div>
+                <div class="stat"><label>当前持仓单元</label><div class="val" id="s-count">—</div></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">持仓资产清单</span>
+                    <span id="table-meta" class="query-meta"></span>
+                </div>
+                <!-- Frappe DataTable mounts here -->
+                <div id="holdings-dt"></div>
+            </div>
+        </div>
+
+        <!-- SQL Page -->
+        <div class="page" id="page-sql">
+            <div style="margin-bottom: 2rem;">
+                <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">DuckDB SQL 工作台</h2>
+                <p style="color:var(--muted);font-size:.95rem;">
+                    数据已载入本地数据库，表名：<code style="color:var(--accent);font-weight:700">snapshots</code>。支持标准 DuckDB SQL 语法。
+                </p>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <textarea class="sql-editor" id="sql-input" spellcheck="false">-- 示例查询：按日期和资产类型汇总市值
+SELECT snapshot_date,
+       type,
+       ROUND(SUM(totalValueTTMCNY), 2) AS total_value_cny,
+       COUNT(*) AS ticker_count
+FROM snapshots
+GROUP BY snapshot_date, type
+ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
+            </div>
+
+            <div style="display:flex;gap:1.5rem;align-items:center;margin-bottom:2rem">
+                <button class="run-btn" id="run-btn" onclick="runSQL()">✨ 执行查询 (Ctrl + Enter)</button>
+                <span id="sql-meta" class="query-meta"></span>
+            </div>
+
+            <div class="card" id="sql-result-card" style="display:none">
+                <div class="card-header">
+                    <span class="card-title">查询执行结果</span>
+                    <span id="sql-row-count" class="query-meta"></span>
+                </div>
+                <!-- Frappe DataTable for SQL results -->
+                <div id="sql-dt"></div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- DuckDB-Wasm ESM -->
+<script type="module">
+    import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm';
+
+    let db, conn;
+
+    async function initDuckDB() {
+        const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
+        const workerUrl = URL.createObjectURL(
+            new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
+        );
+        const worker = new Worker(workerUrl);
+        db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
+        await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+        conn = await db.connect();
+        window.conn = conn;
+
+        const res = await fetch('/api/data/all');
+        const rows = await res.json();
+        if (!rows.length) { console.warn('No data'); return; }
+
+        const cols = Object.keys(rows[0]);
+        const colDefs = cols.map(c => {
+            const v = rows.find(r => r[c] != null)?.[c];
+            return `"${c}" ${typeof v === 'number' ? 'DOUBLE' : 'VARCHAR'}`;
+        }).join(', ');
+
+        const vals = rows.map(r => `(${cols.map(c => {
+            const v = r[c];
+            return v == null ? 'NULL' : typeof v === 'number' ? v : `'${String(v).replace(/'/g, "''")}'`;
+        }).join(',')})`).join(',\n');
+
+        await conn.query(`CREATE TABLE snapshots (${colDefs})`);
+        await conn.query(`INSERT INTO snapshots VALUES ${vals}`);
+        console.log(`DuckDB: ${rows.length} rows loaded`);
+    }
+
+    window._duckQuery = sql => conn.query(sql);
+    window._duckReady = false;
+
+    (async () => {
+        try {
+            await initDuckDB();
+            window._duckReady = true;
+            document.getElementById('init-overlay').style.display = 'none';
+            document.getElementById('app').style.opacity = '1';
+            await window.loadDates();
+        } catch (err) {
+            document.getElementById('init-overlay').innerHTML =
+                `<p style="color:#ef4444;font-weight:700">初始化失败: ${err.message}</p>`;
+            console.error(err);
+        }
+    })();
+</script>
+
+<script>
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function arrowToRows(result) {
+        const schema = result.schema.fields.map(f => f.name);
+        const rows = [];
+        for (const batch of result.batches) {
+            for (let i = 0; i < batch.numRows; i++) {
+                const obj = {};
+                schema.forEach((col, ci) => {
+                    let v = batch.getChildAt(ci).get(i);
+                    // DuckDB returns BigInt for integer aggregates; convert for JS safety
+                    if (typeof v === 'bigint') v = Number(v);
+                    obj[col] = v;
+                });
+                rows.push(obj);
+            }
+        }
+        return rows;
+    }
+
+    function fmt(n, d = 2) {
+        if (n == null || isNaN(n)) return '—';
+        return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+    }
+    function fmtInt(n) {
+        if (n == null) return '—';
+        return Math.round(Number(n)).toLocaleString('en-US');
+    }
+
+    async function syncSnapshot(event) {
+        const btn = event.currentTarget;
+        const oldText = btn.innerText;
+        btn.innerText = '拉取中...';
+        btn.disabled = true;
+        const ind = document.getElementById('loading-indicator');
+        
+        try {
+            const res = await fetch('/api/sync', { method: 'POST' });
+            if (!res.ok) throw new Error(await res.text());
+            
+            ind.style.display = 'inline';
+            ind.innerText = '重载内存数据...';
+            
+            // Reload into DuckDB Wasm
+            const dataRes = await fetch('/api/data/all');
+            const rows = await dataRes.json();
+            if (rows.length) {
+                const cols = Object.keys(rows[0]);
+                const vals = rows.map(r => `(${cols.map(c => {
+                    const v = r[c];
+                    return v == null ? 'NULL' : typeof v === 'number' ? v : `'${String(v).replace(/'/g, "''")}'`;
+                }).join(',')})`).join(',\n');
+                await conn.query('DELETE FROM snapshots');
+                await conn.query(`INSERT INTO snapshots VALUES ${vals}`);
+            }
+            
+            await loadDates(); // refreshes the select options AND auto loads latest date dashboard
+            alert('最新快照数据已经拉取并全量刷新！');
+        } catch (e) {
+            console.error(e);
+            alert('拉取失败: ' + e.message);
+        } finally {
+            btn.innerText = oldText;
+            btn.disabled = false;
+            ind.style.display = 'none';
+            ind.innerText = '处理中…';
+        }
+    }
+
+    // ── Page Navigation ───────────────────────────────────────────────────────
+    function switchPage(name, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('page-' + name).classList.add('active');
+        el.classList.add('active');
+        
+        const titleMap = { 'dashboard': '投资组合概览', 'sql': 'DuckDB SQL 工作台' };
+        document.getElementById('page-title').innerText = titleMap[name] || 'Bubo Analytics';
+    }
+
+    function toggleSidebar() {
+        document.querySelector('.sidebar').classList.toggle('collapsed');
+    }
+
+    // ── Date loader ───────────────────────────────────────────────────────────
+    async function loadDates() {
+        const dates = await (await fetch('/api/dates')).json();
+        const sel = document.getElementById('date-select');
+        sel.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+        if (dates.length) loadDashboard(dates[0]);
+    }
+    window.loadDates = loadDates;
+
+    // ── Holdings DataTable instance ────────────────────────────────────────────
+    let holdingsDT = null;
+
+    const HOLDINGS_COLS = [
+        { name: 'Ticker',          id: 'ticker',          format: v => `<span class="ticker-badge">${v}</span>`, editable: false, resizable: true, width: 110 },
+        { name: '公司名称',          id: 'name',            editable: false, resizable: true, width: 220 },
+        { name: '资产类型',          id: 'type',            format: v => v ? `<span class="type-badge">${v}</span>` : '—', editable: false, resizable: true, width: 100 },
+        { name: '国家',              id: 'country',         editable: false, resizable: true, width: 110 },
+        { name: '币种',              id: 'currency',        editable: false, resizable: true, width: 80 },
+        { name: '份额',              id: 'shares',          format: v => fmtInt(v), editable: false, resizable: true, width: 100, align: 'right' },
+        { name: '平均成本',          id: 'costPerShare',    format: v => fmt(v), editable: false, resizable: true, width: 110, align: 'right' },
+        { name: '当前价格',          id: 'quoteTTM',        format: v => fmt(v), editable: false, resizable: true, width: 110, align: 'right' },
+        { name: '持仓市值 (CNY)',    id: 'totalValueTTMCNY', format: v => `<b style="color:var(--primary)">¥ ${fmt(v)}</b>`, editable: false, resizable: true, width: 160, align: 'right' },
+        { name: '盈亏率 %',          id: 'earningPercent',  format: v => {
+            const n = Number(v);
+            const cls = n >= 0 ? 'up' : 'down';
+            return `<span class="${cls}" style="font-weight:800">${n >= 0 ? '+' : ''}${n.toFixed(2)}%</span>`;
+        }, editable: false, resizable: true, width: 110, align: 'right' },
+    ];
+
+    function buildHoldingsDT(rows) {
+        const container = document.getElementById('holdings-dt');
+
+        if (holdingsDT) {
+            holdingsDT.refresh(rows);
+        } else {
+            holdingsDT = new DataTable(container, {
+                columns:           HOLDINGS_COLS,
+                data:              rows,
+                layout:            { fixedHeight: true, tableHeight: '560px' },
+                enableClusterize:  true,
+                serialNoColumn:    false,
+                checkboxColumn:    false,
+                dynamicRowHeight:  false,
+                inlineFilters:     true,
+                noDataMessage:     '暂无持仓数据',
+            });
+            
+            // Override Frappe's native filter logic with DuckDB power
+            holdingsDT.filterRows = () => {}; // Disable native filtering
+            setupAdvancedFilters(container, holdingsDT, 'snapshots', () => document.getElementById('date-select').value, HOLDINGS_COLS);
+        }
+    }
+
+    function setupAdvancedFilters(container, dt, tableName, getDate, cols) {
+        // State to hold filter values across refreshes
+        let activeFilters = {};
+
+        function handleFilterEvent(e) {
+            if (!e.target || !e.target.classList || !e.target.classList.contains('dt-filter')) return;
+            
+            // Stop Frappe DataTable's JS listeners from seeing this event,
+            // but native browser behavior (like typing text) still works.
+            e.stopPropagation(); 
+
+            // Only trigger our advanced DuckDB search if this is the Enter keydown
+            if (e.type === 'keydown' && e.key === 'Enter') {
+                e.preventDefault();
+                
+                const date = getDate();
+                const filters = [];
+                const inputs = container.querySelectorAll('.dt-filter');
+                
+                let focusColIdx = null;
+                const acell = e.target.closest('.dt-cell');
+                if (acell) {
+                    focusColIdx = parseInt(acell.getAttribute('data-col-index'));
+                }
+
+                inputs.forEach(inp => {
+                    const val = inp.value.trim();
+                    const cell = inp.closest('.dt-cell');
+                    if (!cell) return;
+                    
+                    const colIdx = parseInt(cell.getAttribute('data-col-index'));
+                    if (isNaN(colIdx) || !cols[colIdx]) return;
+                    
+                    activeFilters[colIdx] = val;
+                    if (!val) return;
+                    
+                    const colId = cols[colIdx].id;
+                    if (!colId) return;
+                    
+                    const match = val.match(/^(\>=|\<=|\>|\<|!=|=)\s*(.*)$/);
+                    if (match) {
+                        const op = match[1];
+                        const numStr = match[2].trim();
+                        if (!isNaN(parseFloat(numStr)) && isFinite(numStr)) {
+                            filters.push(`"${colId}" ${op} ${numStr}`);
+                        } else {
+                            filters.push(`"${colId}"::VARCHAR ${op} '${numStr.replace(/'/g, "''")}'`);
+                        }
+                    } else {
+                        filters.push(`"${colId}"::VARCHAR ILIKE '%${val.replace(/'/g, "''")}%'`);
+                    }
+                });
+
+                const whereClause = [`snapshot_date = '${date}'`, ...filters].join(' AND ');
+                const sql = `SELECT * FROM ${tableName} WHERE ${whereClause} ORDER BY totalValueTTMCNY DESC`;
+                
+                (async () => {
+                    try {
+                        const res = await window._duckQuery(sql);
+                        const rows = arrowToRows(res);
+                        dt.refresh(rows);
+                        document.getElementById('table-meta').innerText = `${rows.length} 条记录`;
+                        
+                        setTimeout(() => {
+                            const newInputs = container.querySelectorAll('.dt-filter');
+                            newInputs.forEach(inp => {
+                                const cell = inp.closest('.dt-cell');
+                                if (!cell) return;
+                                const colIdx = parseInt(cell.getAttribute('data-col-index'));
+                                if (!isNaN(colIdx) && activeFilters[colIdx] !== undefined) {
+                                    inp.value = activeFilters[colIdx];
+                                }
+                                if (colIdx === focusColIdx) {
+                                    inp.focus();
+                                    const len = inp.value.length;
+                                    inp.setSelectionRange(len, len);
+                                }
+                            });
+                        }, 10);
+                    } catch (err) {
+                        console.error('Advanced filter error:', err);
+                    }
+                })();
+            }
+        }
+
+        // Apply our "Shield" in the capture phase to all typing-related events
+        container.addEventListener('input', handleFilterEvent, true);
+        container.addEventListener('change', handleFilterEvent, true);
+        container.addEventListener('keydown', handleFilterEvent, true);
+        container.addEventListener('keyup', handleFilterEvent, true);
+        container.addEventListener('keypress', handleFilterEvent, true);
+
+        // Show filters by default
+        const filterRow = container.querySelector('[data-is-filter]');
+        if (filterRow) filterRow.style.display = 'table-row';
+    }
+
+    // ── Dashboard ─────────────────────────────────────────────────────────────
+    async function loadDashboard(date) {
+        if (!window._duckReady) return;
+        document.getElementById('loading-indicator').style.display = 'block';
+
+        try {
+            // Holdings data via DuckDB-Wasm
+            const res = await window._duckQuery(`
+                SELECT ticker, name, type, country, currency,
+                       shares, costPerShare, quoteTTM,
+                       totalCostCNY, totalValueTTMCNY, earningPercent
+                FROM snapshots
+                WHERE snapshot_date = '${date}'
+                ORDER BY totalValueTTMCNY DESC
+            `);
+            const rows = arrowToRows(res);
+
+            // Stats via DuckDB-Wasm
+            const sreq = await window._duckQuery(`
+                SELECT ROUND(SUM(totalValueTTMCNY),2) AS tv,
+                       ROUND(SUM(totalCostCNY),2)      AS tc,
+                       COUNT(*) AS cnt
+                FROM snapshots WHERE snapshot_date = '${date}'
+            `);
+            const s = arrowToRows(sreq)[0];
+            const pnl = s.tc > 0 ? ((s.tv - s.tc) / s.tc * 100) : 0;
+
+            document.getElementById('s-total-value').innerText = '¥ ' + fmt(s.tv);
+            document.getElementById('s-total-cost').innerText  = '¥ ' + fmt(s.tc);
+            const profEl = document.getElementById('s-profit-pct');
+            profEl.innerText = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%';
+            profEl.className = 'val ' + (pnl >= 0 ? 'up' : 'down');
+            document.getElementById('s-count').innerText = s.cnt;
+            document.getElementById('table-meta').innerText  = `${rows.length} 条记录`;
+
+            buildHoldingsDT(rows);
+
+        } catch (err) {
+            console.error('loadDashboard error:', err);
+        } finally {
+            document.getElementById('loading-indicator').style.display = 'none';
+        }
+    }
+
+    // ── SQL workbench ─────────────────────────────────────────────────────────
+    let sqlDT = null;
+
+    async function runSQL() {
+        if (!window._duckReady) return alert('DuckDB 尚未初始化');
+        const sql = document.getElementById('sql-input').value.trim();
+        if (!sql) return;
+
+        const btn = document.getElementById('run-btn');
+        btn.disabled = true;
+        document.getElementById('sql-meta').innerText = '正在执行查询…';
+
+        const t0 = Date.now();
+        try {
+            const result = await window._duckQuery(sql);
+            const rows   = arrowToRows(result);
+            const elapsed = Date.now() - t0;
+
+            document.getElementById('sql-meta').innerText = `查询成功: ${rows.length} 行记录, 用时 ${elapsed}ms`;
+            document.getElementById('sql-row-count').innerText = `${rows.length} 行`;
+            document.getElementById('sql-result-card').style.display = 'block';
+
+            if (!rows.length) {
+                if (sqlDT) { sqlDT.refresh([]); }
+                return;
+            }
+
+            const cols = Object.keys(rows[0]).map(c => ({
+                name: c, id: c, editable: false, resizable: true, align: 'left'
+            }));
+
+            const container = document.getElementById('sql-dt');
+            if (sqlDT) {
+                container.innerHTML = '';
+                sqlDT = null;
+            }
+            sqlDT = new DataTable(container, {
+                columns:           cols,
+                data:              rows,
+                layout:            { fixedHeight: true, tableHeight: '480px' },
+                enableClusterize:  true,
+                serialNoColumn:    false,
+                checkboxColumn:    false,
+                inlineFilters:     true,
+                noDataMessage:     '无结果',
+            });
+            const filterRow = container.querySelector('[data-is-filter]');
+            if (filterRow) filterRow.style.display = 'table-row';
+
+        } catch (err) {
+            document.getElementById('sql-meta').innerText = '❌ SQL 错误: ' + err.message;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+    window.runSQL = runSQL;
+    
+    // Ctrl + Enter to run SQL
+    document.getElementById('sql-input').addEventListener('keydown', e => {
+        if (e.ctrlKey && e.key === 'Enter') runSQL();
+    });
+</script>
+</body>
+</html>
