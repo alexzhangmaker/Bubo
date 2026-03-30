@@ -100,6 +100,17 @@ module.exports = {
       env: {
         PYTHONPATH: '.'
       }
+    },
+    {
+      name: 'buboDev',
+      cwd: '/Users/zhangqing/Documents/GitHub/Bubo',
+      script: 'npx',
+      args: 'http-server -p 3330 .',
+      interpreter: 'none', // 使用 shell 执行 npx
+      watch: false,
+      env: {
+        NODE_ENV: 'development',
+      },
     }
   ]
 };

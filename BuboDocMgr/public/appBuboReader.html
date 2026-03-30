@@ -4,22 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BuboReader - Smart PDF Reader</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         :root {
-            --primary: #6366f1;
-            --bg: #0f172a;
+            --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --primary: #0f172a;
+            --bg: #f8fafc;
             --sidebar-bg: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --accent: #22d3ee;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --accent: #10b981;
             --highlight: rgba(254, 240, 138, 0.4);
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
@@ -195,7 +196,7 @@
             border: none;
             color: var(--text);
             padding: 20px;
-            font-family: inherit;
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
             font-size: 15px;
             line-height: 1.6;
             resize: none;

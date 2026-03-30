@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubo Memo Write</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto Condensed', 'Inter', sans-serif !important; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+        }
+        .font-outfit { font-family: 'Outfit', sans-serif; }
+        
+        .sidebar-item:hover { background-color: rgba(0,0,0,0.05); }
+        .sidebar-item.active { background-color: rgba(99, 102, 241, 0.1); color: #6366f1; }
+        
+        /* Tiptap Editor Styles */
+        .ProseMirror {
+            outline: none;
+            min-height: 500px;
+            padding: 2rem 0;
+        }
+        .ProseMirror p.is-editor-empty:first-child::before {
+            content: attr(data-placeholder);
+            float: left;
+            color: #adb5bd;
+            pointer-events: none;
+            height: 0;
+        }
+        .ProseMirror h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1.5rem; }
+        .ProseMirror h2 { font-size: 1.8rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; }
+        .ProseMirror h3 { font-size: 1.4rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .ProseMirror ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .ProseMirror ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .ProseMirror blockquote { border-left: 4px solid #e2e8f0; padding-left: 1rem; font-style: italic; color: #4a5568; margin: 1.5rem 0; }
+        .ProseMirror code { background: #edf2f7; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-family: monospace; }
+        .ProseMirror pre { background: #2d3748; color: #fff; padding: 1rem; border-radius: 0.5rem; margin: 1.5rem 0; overflow-x: auto; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+        .tab-active {
+            border-bottom: 2px solid #6366f1;
+            color: #6366f1;
+            background: white;
+        }
+        
+        #editor-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Glassmorphism subtle */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- Top Navigation / Search -->
+    <header class="h-14 border-b bg-white flex items-center justify-between px-4 z-20">
+        <div class="flex items-center gap-4 flex-1">
+            <button class="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                <i data-lucide="menu" size="20"></i>
+            </button>
+            <div class="relative w-full max-w-xl">
+                <i data-lucide="search" size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" placeholder="Search or ask your Mem" class="w-full bg-slate-100 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all">
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                <i data-lucide="zap" size="14"></i>
+                MEM
+            </div>
+            <button class="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                <i data-lucide="minus" size="20"></i>
+            </button>
+            <button class="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                <i data-lucide="square" size="16"></i>
+            </button>
+            <button class="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                <i data-lucide="x" size="20"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Left Sidebar -->
+        <aside class="w-64 border-r bg-slate-50 flex flex-col overflow-y-auto z-10">
+            <div class="p-4 flex items-center gap-2 mb-2">
+                <div class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-xs">M</div>
+                <span class="font-semibold text-sm">Miguel</span>
+            </div>
+            
+            <button id="create-note-btn" class="mx-4 mb-6 flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 font-semibold py-2.5 rounded-xl border border-emerald-100 hover:bg-white transition-all shadow-sm">
+                <i data-lucide="plus" size="18"></i>
+                <span>Create Note</span>
+            </button>
+
+            <nav class="flex-1 px-2 space-y-1">
+                <div class="px-3 py-2 flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    <span>工程项目</span>
+                    <button id="create-project-btn" class="hover:text-emerald-600"><i data-lucide="plus-circle" size="18"></i></button>
+                </div>
+                <div id="projects-list" class="space-y-0.5 mb-6">
+                    <!-- Expanded projects and memos will be rendered here -->
+                </div>
+
+                <div class="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">维度检索</div>
+                <div class="space-y-0.5">
+                    <div class="sidebar-item flex items-center gap-3 px-3 py-1.5 text-sm rounded-lg cursor-pointer transition-colors hover:bg-slate-100" data-filter="all">
+                        <i data-lucide="layers" size="16" class="text-slate-400"></i>
+                        <span>全部卡片</span>
+                    </div>
+                    <div class="sidebar-item flex items-center gap-3 px-3 py-1.5 text-sm rounded-lg cursor-pointer transition-colors hover:bg-slate-100" data-filter="timeline">
+                        <i data-lucide="clock" size="16" class="text-slate-400"></i>
+                        <span>时光轴</span>
+                    </div>
+                    <div class="sidebar-item flex items-center gap-3 px-3 py-1.5 text-sm rounded-lg cursor-pointer transition-colors hover:bg-slate-100" data-filter="starred">
+                        <i data-lucide="star" size="16" class="text-slate-400"></i>
+                        <span>精选卡片</span>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="flex-1 flex flex-col bg-white overflow-hidden relative">
+            <!-- Tabs -->
+            <div id="tabs-container" class="h-10 border-b bg-slate-50 flex items-center px-4 gap-1 overflow-x-auto no-scrollbar">
+                <!-- Tabs will be rendered here -->
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto custom-scroll p-8 sm:p-12">
+                <div id="editor-container" class="relative">
+                    <div id="editor-header" class="mb-4 text-slate-400 text-sm flex items-center gap-2">
+                        <i data-lucide="hash" size="14"></i>
+                        <span id="current-memo-project">Organize</span>
+                    </div>
+                    
+                    <div id="memo-title-container" class="group relative mb-8">
+                        <div class="flex items-center gap-4 mb-2">
+                             <div id="memo-icon" class="text-4xl">🧠</div>
+                        </div>
+                        <input type="text" id="memo-title-input" placeholder="Untitled Memo" class="w-full text-4xl font-extrabold font-outfit border-none focus:ring-0 p-0 placeholder:text-slate-200 bg-transparent">
+                    </div>
+
+                    <div id="tiptap-editor" class="text-lg leading-relaxed text-slate-700"></div>
+                </div>
+
+                <!-- Footer Status -->
+                <div class="mt-20 pt-8 border-t flex items-center justify-between text-xs text-slate-400">
+                   <div class="flex items-center gap-4">
+                       <span id="save-status" class="flex items-center gap-1">
+                           <i data-lucide="lock" size="12"></i> Private
+                       </span>
+                       <span id="last-edited">Edited today</span>
+                   </div>
+                   <div class="flex items-center gap-3">
+                       <button class="hover:text-slate-600"><i data-lucide="paperclip" size="14"></i></button>
+                       <button id="voice-recording-btn" class="flex items-center gap-1 hover:text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                           <i data-lucide="mic" size="14"></i> Voice Recording
+                       </button>
+                   </div>
+                </div>
+            </div>
+            
+            <!-- Action Floating Buttons -->
+            <div class="absolute top-6 right-8 flex items-center gap-2" id="action-buttons-container">
+                 <button id="sync-btn" class="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors" title="Sync to cloud">
+                     <i data-lucide="refresh-cw" size="18"></i>
+                 </button>
+                 <button id="delete-btn" class="p-2 hover:bg-rose-50 hover:text-rose-600 rounded-full text-slate-400 transition-colors" title="Delete Memo">
+                     <i data-lucide="trash-2" size="18"></i>
+                 </button>
+            </div>
+        </main>
+
+        <!-- Right Side Panel -->
+        <aside class="w-80 border-l bg-slate-50/50 flex flex-col z-10">
+            <div class="p-6 flex-1 overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-sm uppercase tracking-wider text-slate-500">Metadata</h3>
+                    <div class="flex gap-2">
+                        <button class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="refresh-cw" size="14"></i></button>
+                        <button class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="more-horizontal" size="14"></i></button>
+                        <button class="p-1 hover:bg-slate-200 rounded text-slate-400"><i data-lucide="chevrons-right" size="14"></i></button>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div id="memo-info-card" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                         <div class="flex items-center gap-3 mb-4">
+                             <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-xl">🧠</div>
+                             <div>
+                                 <h4 id="info-title" class="font-bold text-sm">Memo Title</h4>
+                                 <p class="text-xs text-slate-400">Updated just now</p>
+                             </div>
+                         </div>
+                         
+                         <div class="space-y-3">
+                             <div>
+                                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Project</label>
+                                 <select id="project-selector" class="w-full bg-slate-50 border-none text-xs rounded-lg py-1.5 focus:ring-0">
+                                     <option value="">No Project</option>
+                                 </select>
+                             </div>
+                             <div>
+                                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Tags</label>
+                                 <div id="tags-container" class="flex flex-wrap gap-1 mt-1">
+                                     <!-- Tags here -->
+                                 </div>
+                                 <input type="text" id="tag-input" placeholder="Add tag..." class="w-full bg-transparent border-none text-xs focus:ring-0 p-0 mt-2 text-emerald-500">
+                             </div>
+                         </div>
+                    </div>
+
+                    <div class="space-y-4">
+                         <div class="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-tighter px-1">
+                             <span>Overview</span>
+                             <i data-lucide="chevron-down" size="12"></i>
+                         </div>
+                         <div class="space-y-3 text-sm px-1">
+                             <div class="flex gap-3 items-start">
+                                 <i data-lucide="file-text" size="16" class="text-slate-300 mt-0.5"></i>
+                                 <p class="text-slate-600 text-xs">New feature set breakdown<br><span class="text-[10px] text-slate-400">Shows Mem's feature evolution</span></p>
+                             </div>
+                             <div class="flex gap-3 items-start">
+                                 <i data-lucide="layout" size="16" class="text-slate-300 mt-0.5"></i>
+                                 <p class="text-slate-600 text-xs text-emerald-600 font-medium">Platform Revamp Strategy<br><span class="text-[10px] text-slate-400 italic">Connected to 4 other memos</span></p>
+                             </div>
+                         </div>
+                    </div>
+                </div>
+
+                <!-- Find More Button -->
+                <button class="w-full mt-10 flex items-center justify-center gap-2 bg-slate-100 text-slate-500 font-semibold py-2 rounded-xl border border-slate-200 hover:bg-white transition-all text-xs">
+                    <i data-lucide="zap" size="14"></i>
+                    <span>Find more</span>
+                </button>
+            </div>
+
+            <!-- Bottom Chat/Input -->
+            <div class="p-4 bg-white border-t">
+                <div class="relative">
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300">
+                        <i data-lucide="plus" size="16"></i>
+                    </div>
+                    <input type="text" placeholder="Tell or ask Bubo something" class="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-10 pr-10 text-xs focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/30 transition-all outline-none">
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <i data-lucide="arrow-up" size="16"></i>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Create Project Modal -->
+    <div id="create-project-modal" class="fixed inset-0 z-50 bg-slate-900/50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4">
+            <h3 class="text-lg font-bold text-slate-800">Create New Project</h3>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Project Name <span class="text-rose-500">*</span></label>
+                <input type="text" id="new-project-name" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none" placeholder="e.g., Q3 Marketing Plan">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Description (Optional)</label>
+                <textarea id="new-project-desc" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none" placeholder="Brief description of the project..."></textarea>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" id="cancel-project-btn" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button type="button" id="submit-project-btn" class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-2">
+                    <span>Create Project</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification system -->
+    <div id="notification" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 translate-y-20 opacity-0">
+        <div id="notification-content" class="bg-slate-800 text-white px-4 py-2 rounded-full text-sm shadow-xl flex items-center gap-2">
+            <i data-lucide="check-circle" size="16" class="text-emerald-400"></i>
+            <span>Changes saved</span>
+        </div>
+    </div>
+
+    <!-- Import Map for Tiptap -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@tiptap/core": "https://esm.sh/@tiptap/core",
+            "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit",
+            "@tiptap/extension-placeholder": "https://esm.sh/@tiptap/extension-placeholder",
+            "prosemirror-model": "https://esm.sh/prosemirror-model",
+            "prosemirror-state": "https://esm.sh/prosemirror-state",
+            "prosemirror-view": "https://esm.sh/prosemirror-view",
+            "tiptap-markdown": "https://esm.sh/tiptap-markdown"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import { Editor } from '@tiptap/core';
+        import StarterKit from '@tiptap/starter-kit';
+        import Placeholder from '@tiptap/extension-placeholder';
+        import { Markdown } from 'tiptap-markdown';
+
+        // --- App Configuration & State ---
+        const API_BASE = 'http://localhost:3301/api'; // Point to BuboMemoMgr
+        let state = {
+            memos: [],
+            projects: [],
+            openMemos: [], // Array of memo objects currently being edited
+            activeMemoId: null, // content_uuid of the active memo
+            isSyncing: false,
+            lastSaved: null
+        };
+
+        // --- DOM Elements ---
+        const editorEl = document.getElementById('tiptap-editor');
+        const tabsContainer = document.getElementById('tabs-container');
+        const projectsList = document.getElementById('projects-list');
+        const notesList = document.getElementById('notes-list');
+        const memoTitleInput = document.getElementById('memo-title-input');
+        const projectSelector = document.getElementById('project-selector');
+        const tagsContainer = document.getElementById('tags-container');
+        const tagInput = document.getElementById('tag-input');
+        const saveStatus = document.getElementById('save-status');
+
+        // --- Editor Initialization ---
+        const editor = new Editor({
+            element: editorEl,
+            extensions: [
+                StarterKit,
+                Placeholder.configure({
+                    placeholder: 'Write something, or press "/" for commands...',
+                }),
+                Markdown.configure({
+                    html: true,
+                    tightLists: true,
+                    tightListClass: 'tight',
+                    bulletListMarker: '-',
+                    linkify: true,
+                    breaks: true,
+                    transformPastedText: true,
+                    transformCopiedText: true,
+                }),
+            ],
+            onUpdate: ({ editor }) => {
+                const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+                if (activeMemo) {
+                    activeMemo.content = editor.storage.markdown.getMarkdown(); // Get Markdown directly
+                    activeMemo.dirty = true;
+                    saveToLocalStorage();
+                    debounceAutoSave();
+                    renderTabs(); // Show dirty indicator
+                }
+            },
+        });
+
+        // --- State ---
+        let expandedProjects = new Set(); // Track which projects are expanded
+
+        // --- Main Functions ---
+        async function init() {
+            lucide.createIcons();
+            loadFromLocalStorage();
+            await fetchData();
+            renderSidebar();
+            
+            if (state.openMemos.length > 0) {
+                switchTab(state.activeMemoId || state.openMemos[0].uuid);
+            } else {
+                createNewMemo();
+            }
+            
+            setupEventListeners();
+        }
+
+        async function fetchData() {
+            try {
+                const [memosRes, projectsRes] = await Promise.all([
+                    fetch(`${API_BASE}/metadata`),
+                    fetch(`${API_BASE}/projects`)
+                ]);
+                state.memos = await memosRes.json();
+                state.projects = await projectsRes.json();
+                renderSidebar();
+                renderMetadataPanel();
+            } catch (err) {
+                console.error('Fetch error:', err);
+                showNotification('Failed to connect to backend', 'error');
+            }
+        }
+
+        function renderSidebar() {
+            // Group memos by project
+            const memosByProject = {};
+            state.memos.forEach(m => {
+                const pid = m.project_id || 'unclassified';
+                if (!memosByProject[pid]) memosByProject[pid] = [];
+                memosByProject[pid].push(m);
+            });
+
+            // Projects with memos
+            const projectsHtml = state.projects.map(p => {
+                const projectMemos = memosByProject[p.id] || [];
+                const isExpanded = expandedProjects.has(p.id);
+                
+                return `
+                    <div class="project-group">
+                        <div class="sidebar-item flex items-center justify-between px-3 py-1.5 text-sm rounded-lg cursor-pointer hover:bg-slate-100 group" onclick="toggleProjectExpansion(${p.id})">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="grip-vertical" size="14" class="text-slate-300 opacity-0 group-hover:opacity-100 cursor-grab"></i>
+                                <span class="truncate font-medium">${p.name}</span>
+                            </div>
+                            <i data-lucide="chevron-${isExpanded ? 'down' : 'right'}" size="12" class="text-slate-400"></i>
+                        </div>
+                        <div class="project-memos px-2 mt-0.5 space-y-0.5 ${isExpanded ? '' : 'hidden'}">
+                            ${projectMemos.map(m => `
+                                <div class="sidebar-item flex items-center gap-3 px-6 py-1.5 text-xs rounded-lg cursor-pointer transition-colors ${state.activeMemoId === m.uuid ? 'active' : 'text-slate-500 hover:bg-slate-100'}" onclick="openMemo('${m.uuid}')">
+                                    <span class="text-base">🧠</span>
+                                    <span class="truncate">${m.memo_title || m.name}</span>
+                                </div>
+                            `).join('')}
+                            ${projectMemos.length === 0 ? '<div class="px-6 py-1 text-[10px] text-slate-400 italic">No memos</div>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Unclassified memos
+            const unclassifiedMemos = memosByProject['unclassified'] || [];
+            const unclassifiedHtml = unclassifiedMemos.length > 0 ? `
+                <div class="project-group">
+                    <div class="sidebar-item flex items-center justify-between px-3 py-1.5 text-sm rounded-lg cursor-pointer hover:bg-slate-100" onclick="toggleProjectExpansion('unclassified')">
+                        <span class="truncate font-medium text-slate-500">Unclassified</span>
+                        <i data-lucide="chevron-${expandedProjects.has('unclassified') ? 'down' : 'right'}" size="12" class="text-slate-400"></i>
+                    </div>
+                    <div class="project-memos px-2 mt-0.5 space-y-0.5 ${expandedProjects.has('unclassified') ? '' : 'hidden'}">
+                        ${unclassifiedMemos.map(m => `
+                            <div class="sidebar-item flex items-center gap-3 px-6 py-1.5 text-xs rounded-lg cursor-pointer transition-colors ${state.activeMemoId === m.uuid ? 'active' : 'text-slate-500 hover:bg-slate-100'}" onclick="openMemo('${m.uuid}')">
+                                <span class="text-base text-slate-300">🧠</span>
+                                <span class="truncate">${m.memo_title || m.name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '';
+
+            projectsList.innerHTML = projectsHtml + unclassifiedHtml;
+            lucide.createIcons();
+        }
+
+        window.toggleProjectExpansion = function(pid) {
+            const wasExpanded = expandedProjects.has(pid);
+            expandedProjects.clear();
+            if (!wasExpanded) {
+                expandedProjects.add(pid);
+            }
+            renderSidebar();
+        }
+
+        async function openMemo(uuid) {
+            // Check if already open
+            let opened = state.openMemos.find(m => m.uuid === uuid);
+            if (!opened) {
+                try {
+                    showNotification('Loading content...', 'info');
+                    const contentRes = await fetch(`${API_BASE}/file/${uuid}/content`);
+                    const content = await contentRes.text();
+                    
+                    const meta = state.memos.find(m => m.uuid === uuid);
+                    if (!meta) return;
+
+                    opened = {
+                        uuid: uuid,
+                        title: meta.memo_title || meta.name,
+                        content: content,
+                        project_id: meta.project_id,
+                        tags: (meta.memo_tags || '').split(',').map(t => t.trim()).filter(Boolean),
+                        dirty: false
+                    };
+                    state.openMemos.push(opened);
+                } catch (err) {
+                    console.error('Error opening memo:', err);
+                    showNotification('Failed to load memo content', 'error');
+                    return;
+                }
+            }
+            switchTab(uuid);
+        }
+
+        function switchTab(uuid) {
+            state.activeMemoId = uuid;
+            const activeMemo = state.openMemos.find(m => m.uuid === uuid);
+            if (!activeMemo) return;
+
+            // Update UI
+            // The Markdown extension allows setContent to handle Markdown content directly
+            editor.commands.setContent(activeMemo.content || ''); 
+            memoTitleInput.value = activeMemo.title;
+            document.getElementById('info-title').textContent = activeMemo.title || 'Untitled';
+            
+            renderTabs();
+            renderMetadataPanel();
+            saveToLocalStorage();
+        }
+
+        function renderTabs() {
+            tabsContainer.innerHTML = state.openMemos.map(m => `
+                <div class="group flex items-center gap-2 px-3 py-1 h-8 rounded-t-lg text-xs cursor-pointer transition-all ${state.activeMemoId === m.uuid ? 'tab-active' : 'hover:bg-slate-200 text-slate-500'}" onclick="switchTab('${m.uuid}')">
+                    <span class="truncate max-w-[120px]">${m.title || 'Untitled'}</span>
+                    ${m.dirty ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' : ''}
+                    <button class="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-300 rounded transition-all" onclick="event.stopPropagation(); closeTab('${m.uuid}')">
+                        <i data-lucide="x" size="10"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function closeTab(uuid) {
+            const index = state.openMemos.findIndex(m => m.uuid === uuid);
+            if (index === -1) return;
+            
+            const memo = state.openMemos[index];
+            if (memo.dirty && !confirm('You have unsaved changes. Close anyway?')) return;
+            
+            state.openMemos.splice(index, 1);
+            if (state.activeMemoId === uuid) {
+                state.activeMemoId = state.openMemos.length > 0 ? state.openMemos[state.openMemos.length - 1].uuid : null;
+                if (state.activeMemoId) {
+                    switchTab(state.activeMemoId);
+                } else {
+                    createNewMemo();
+                }
+            } else {
+                renderTabs();
+            }
+            saveToLocalStorage();
+        }
+
+        function createNewMemo() {
+            const newId = 'temp-' + Date.now();
+            const newMemo = {
+                uuid: newId,
+                title: '',
+                content: '',
+                project_id: null,
+                tags: [],
+                dirty: true,
+                isNew: true
+            };
+            state.openMemos.push(newMemo);
+            switchTab(newId);
+        }
+
+        function renderMetadataPanel() {
+            const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+            if (!activeMemo) return;
+
+            // Projects
+            projectSelector.innerHTML = '<option value="">No Project</option>' + state.projects.map(p => `
+                <option value="${p.id}" ${activeMemo.project_id == p.id ? 'selected' : ''}>${p.name}</option>
+            `).join('');
+
+            // Tags
+            tagsContainer.innerHTML = (activeMemo.tags || []).map(t => `
+                <span class="flex items-center gap-1 bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-medium">
+                    ${t}
+                    <button onclick="removeTag('${t}')" class="hover:text-emerald-800"><i data-lucide="x" size="10"></i></button>
+                </span>
+            `).join('');
+            
+            const proj = state.projects.find(p => p.id == activeMemo.project_id);
+            document.getElementById('current-memo-project').textContent = proj ? proj.name : 'Organize';
+            
+            lucide.createIcons();
+        }
+
+        // --- API Integration ---
+        let pendingSave = false;
+        async function syncToBackend() {
+            if (state.isSyncing) {
+                pendingSave = true;
+                return;
+            }
+            const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+            if (!activeMemo || (!activeMemo.dirty && !activeMemo.isNew)) return;
+
+            state.isSyncing = true;
+            saveStatus.innerHTML = '<i data-lucide="refresh-cw" size="12" class="animate-spin"></i> Saving...';
+            lucide.createIcons();
+
+            try {
+                if (activeMemo.isNew) {
+                    // Create new
+                    const formData = new FormData();
+                    const blob = new Blob([activeMemo.content], { type: 'text/markdown' });
+                    formData.append('file', blob, (activeMemo.title || 'Untitled') + '.md');
+                    formData.append('title', activeMemo.title || 'Untitled');
+                    formData.append('project_id', activeMemo.project_id || '');
+                    formData.append('tags', activeMemo.tags.join(','));
+
+                    const res = await fetch(`${API_BASE}/file`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    
+                    // Replace temp ID with real UUID
+                    activeMemo.uuid = data.uuid;
+                    activeMemo.isNew = false;
+                    state.activeMemoId = data.uuid;
+                    showNotification('Memo created & saved');
+                } else {
+                    // Update content
+                    await fetch(`${API_BASE}/file/${activeMemo.uuid}/content`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: activeMemo.content })
+                    });
+                    
+                    // Update metadata
+                    await fetch(`${API_BASE}/memo/${activeMemo.uuid}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: activeMemo.title,
+                            project_id: activeMemo.project_id,
+                            tags: activeMemo.tags.join(',')
+                        })
+                    });
+                    showNotification('Changes synced to cloud');
+                }
+
+                activeMemo.dirty = false;
+                state.lastSaved = new Date();
+                document.getElementById('last-edited').textContent = 'Saved just now';
+                saveStatus.innerHTML = '<i data-lucide="check-circle" size="12" class="text-emerald-500"></i> Synced';
+                
+                await fetchData(); // Refresh sidebar
+                renderTabs();
+            } catch (err) {
+                console.error('Sync failed:', err);
+                showNotification('Sync failed', 'error');
+                saveStatus.innerHTML = '<i data-lucide="alert-circle" size="12" class="text-rose-500"></i> Sync failed';
+            } finally {
+                state.isSyncing = false;
+                lucide.createIcons();
+                if (pendingSave) {
+                    pendingSave = false;
+                    debounceAutoSave();
+                }
+            }
+        }
+
+        // --- Helpers & Events ---
+        let autoSaveTimer;
+        function debounceAutoSave() {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                syncToBackend();
+            }, 3000); // 3 seconds after last update
+        }
+
+        function setupEventListeners() {
+            memoTitleInput.addEventListener('input', () => {
+                const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+                if (activeMemo) {
+                    activeMemo.title = memoTitleInput.value;
+                    activeMemo.dirty = true;
+                    document.getElementById('info-title').textContent = activeMemo.title || 'Untitled';
+                    
+                    const metaMemo = state.memos.find(m => m.uuid === activeMemo.uuid);
+                    if (metaMemo) {
+                        metaMemo.memo_title = activeMemo.title;
+                        metaMemo.name = activeMemo.title;
+                    }
+                    renderSidebar();
+
+                    renderTabs();
+                    saveToLocalStorage();
+                    debounceAutoSave();
+                }
+            });
+
+            projectSelector.addEventListener('change', () => {
+                const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+                if (activeMemo) {
+                    activeMemo.project_id = projectSelector.value;
+                    activeMemo.dirty = true;
+                    
+                    const metaMemo = state.memos.find(m => m.uuid === activeMemo.uuid);
+                    if (metaMemo) {
+                        metaMemo.project_id = projectSelector.value;
+                    }
+                    renderSidebar();
+                    
+                    renderMetadataPanel();
+                    saveToLocalStorage();
+                    debounceAutoSave();
+                }
+            });
+
+            tagInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && tagInput.value.trim()) {
+                    const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+                    if (activeMemo) {
+                        if (!activeMemo.tags) activeMemo.tags = [];
+                        if (!activeMemo.tags.includes(tagInput.value.trim())) {
+                            activeMemo.tags.push(tagInput.value.trim());
+                            activeMemo.dirty = true;
+                            tagInput.value = '';
+                            renderMetadataPanel();
+                            saveToLocalStorage();
+                            debounceAutoSave();
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('sync-btn').addEventListener('click', syncToBackend);
+            document.getElementById('create-note-btn').addEventListener('click', createNewMemo);
+            
+            // Delete Memo Event
+            document.getElementById('delete-btn').addEventListener('click', async () => {
+                const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+                if (!activeMemo) return;
+
+                if (!confirm(`Are you sure you want to delete "${activeMemo.title || 'Untitled'}"? This cannot be undone.`)) {
+                    return;
+                }
+
+                const btn = document.getElementById('delete-btn');
+                const originalBtnHtml = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="loader-2" size="18" class="animate-spin"></i>';
+                lucide.createIcons();
+
+                try {
+                    if (!activeMemo.isNew) {
+                        const res = await fetch(`${API_BASE}/card/${activeMemo.uuid}`, {
+                            method: 'DELETE'
+                        });
+                        if (!res.ok) throw new Error('Failed to delete from server');
+                    }
+
+                    showNotification('Memo deleted', 'success');
+                    activeMemo.dirty = false;
+                    closeTab(activeMemo.uuid);
+                    await fetchData(); // Refresh sidebar and remove from projects
+                } catch (err) {
+                    console.error('Delete failed:', err);
+                    showNotification('Failed to delete memo', 'error');
+                } finally {
+                    if (document.getElementById('delete-btn')) {
+                        document.getElementById('delete-btn').innerHTML = originalBtnHtml;
+                        lucide.createIcons();
+                    }
+                }
+            });
+
+            // Project Creation Events
+            const createProjectModal = document.getElementById('create-project-modal');
+            const projectNameInput = document.getElementById('new-project-name');
+            const projectDescInput = document.getElementById('new-project-desc');
+            const submitProjectBtn = document.getElementById('submit-project-btn');
+
+            document.getElementById('create-project-btn').addEventListener('click', () => {
+                createProjectModal.classList.remove('hidden');
+                projectNameInput.focus();
+            });
+
+            document.getElementById('cancel-project-btn').addEventListener('click', () => {
+                createProjectModal.classList.add('hidden');
+                projectNameInput.value = '';
+                projectDescInput.value = '';
+            });
+
+            submitProjectBtn.addEventListener('click', async () => {
+                const name = projectNameInput.value.trim();
+                const description = projectDescInput.value.trim();
+                
+                if (!name) {
+                    showNotification('Project name is required', 'error');
+                    projectNameInput.focus();
+                    return;
+                }
+
+                const originalBtnText = submitProjectBtn.innerHTML;
+                submitProjectBtn.innerHTML = '<i data-lucide="loader-2" size="16" class="animate-spin"></i> Creating...';
+                submitProjectBtn.disabled = true;
+                lucide.createIcons();
+
+                try {
+                    const res = await fetch(`${API_BASE}/projects`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, description })
+                    });
+                    
+                    if (!res.ok) throw new Error('Failed to create project');
+                    
+                    // Reset and close modal
+                    projectNameInput.value = '';
+                    projectDescInput.value = '';
+                    createProjectModal.classList.add('hidden');
+                    
+                    // Refresh data
+                    await fetchData();
+                    
+                    showNotification('Project created successfully', 'success');
+                } catch (err) {
+                    console.error('Error creating project:', err);
+                    showNotification('Failed to create project', 'error');
+                } finally {
+                    submitProjectBtn.innerHTML = originalBtnText;
+                    submitProjectBtn.disabled = false;
+                }
+            });
+
+            // Global click handler for sidebar
+            window.openMemo = openMemo;
+            window.switchTab = switchTab;
+            window.closeTab = closeTab;
+        }
+
+        window.removeTag = function(tag) {
+            const activeMemo = state.openMemos.find(m => m.uuid === state.activeMemoId);
+            if (activeMemo) {
+                activeMemo.tags = activeMemo.tags.filter(t => t !== tag);
+                activeMemo.dirty = true;
+                renderMetadataPanel();
+                saveToLocalStorage();
+                debounceAutoSave();
+            }
+        }
+
+        function showNotification(msg, type = 'success') {
+            const el = document.getElementById('notification');
+            const content = document.getElementById('notification-content');
+            content.querySelector('span').textContent = msg;
+            
+            if (type === 'error') {
+                content.classList.remove('bg-slate-800');
+                content.classList.add('bg-rose-600');
+            } else {
+                content.classList.remove('bg-rose-600');
+                content.classList.add('bg-slate-800');
+            }
+
+            el.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                el.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('bubo_editor_state', JSON.stringify({
+                openMemos: state.openMemos,
+                activeMemoId: state.activeMemoId
+            }));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('bubo_editor_state');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    state.openMemos = data.openMemos || [];
+                    state.activeMemoId = data.activeMemoId;
+                } catch (e) {
+                    console.error('Local storage parse error', e);
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

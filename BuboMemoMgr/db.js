@@ -23,15 +23,33 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS projects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    is_archived INTEGER DEFAULT 0,
+    display_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS memos (
     uuid TEXT PRIMARY KEY,
     title TEXT,             -- Also serves as "Question"
     tags TEXT,              -- Comma separated tags
+    project_id INTEGER,     -- Reference to projects.id
     content_uuid TEXT,      -- Reference to files.uuid
     last_update DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (content_uuid) REFERENCES files(uuid)
+    FOREIGN KEY (content_uuid) REFERENCES files(uuid),
+    FOREIGN KEY (project_id) REFERENCES projects(id)
   );
 `);
+
+// Migration: Add project_id to memos if it doesn't exist (for existing databases)
+try {
+  db.exec("ALTER TABLE memos ADD COLUMN project_id INTEGER REFERENCES projects(id)");
+} catch (e) {
+  // Column likely already exists
+}
 
 export default db;

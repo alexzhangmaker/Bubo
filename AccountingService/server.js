@@ -71,8 +71,56 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
                 quoteTTM REAL,
                 earningInPercent REAL
             )`);
+
+            // OtherAssets Table
+            db.run(`CREATE TABLE IF NOT EXISTS OtherAssets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                assetName TEXT,
+                assetCategory TEXT,
+                currency TEXT,
+                amount REAL,
+                description TEXT,
+                updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`);
         });
     }
+});
+
+// --- API Endpoints for OtherAssets ---
+
+// List all other assets
+app.get('/api/other-assets', (req, res) => {
+    db.all('SELECT * FROM OtherAssets', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Create or update Other Asset
+app.post('/api/other-assets', (req, res) => {
+    const { id, assetName, assetCategory, currency, amount, description } = req.body;
+    if (!id) {
+        db.run(`INSERT INTO OtherAssets (assetName, assetCategory, currency, amount, description) VALUES (?, ?, ?, ?, ?)`,
+        [assetName, assetCategory, currency, amount, description], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Other Asset created', id: this.lastID });
+        });
+    } else {
+        db.run(`UPDATE OtherAssets SET assetName=?, assetCategory=?, currency=?, amount=?, description=?, updatedAt=CURRENT_TIMESTAMP WHERE id=?`,
+        [assetName, assetCategory, currency, amount, description, id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Other Asset updated', changes: this.changes });
+        });
+    }
+});
+
+// Delete Other Asset
+app.delete('/api/other-assets/:id', (req, res) => {
+    const { id } = req.params;
+    db.run('DELETE FROM OtherAssets WHERE id = ?', [id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Other Asset deleted', changes: this.changes });
+    });
 });
 
 // --- API Endpoints for Assets ---

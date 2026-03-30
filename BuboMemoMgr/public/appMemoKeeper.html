@@ -6,27 +6,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MemoKeeper - 知识工程管理</title>
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Marked.js for Markdown -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Sortable.js for Drag and Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         :root {
-            --primary: #6366f1;
+            --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --primary: #0f172a;
             --primary-light: #818cf8;
             --secondary: #64748b;
-            --bg: #0f172a;
-            --sidebar-bg: rgba(30, 41, 59, 0.7);
-            --card-bg: rgba(30, 41, 59, 0.5);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg: #f8fafc;
+            --sidebar-bg: rgba(255, 255, 255, 0.7);
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
             --accent: #10b981;
-            --border: rgba(255, 255, 255, 0.1);
+            --border: #e2e8f0;
             --glass-blur: 15px;
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -38,7 +39,7 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
             background-color: var(--bg);
             color: var(--text-main);
             height: 100vh;
@@ -63,7 +64,7 @@
         }
 
         .logo {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
             font-size: 20px;
             font-weight: 700;
             display: flex;
@@ -71,6 +72,7 @@
             gap: 10px;
             background: linear-gradient(135deg, var(--primary-light), var(--accent));
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -137,7 +139,7 @@
 
         .nav-item:hover {
             color: var(--text-main);
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.05);
         }
 
         .nav-item.active {
@@ -173,7 +175,7 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             color: var(--text-main);
-            font-family: inherit;
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
             transition: var(--transition);
         }
 
@@ -251,6 +253,7 @@
             line-height: 1.6;
             display: -webkit-box;
             -webkit-line-clamp: 3;
+            line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -389,6 +392,88 @@
             height: 400px;
             color: var(--text-muted);
         }
+
+        /* Project Management UI */
+        .nav-title-row {
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .add-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+        }
+
+        .add-btn:hover { color: var(--primary-light); }
+
+        .project-item {
+            position: relative;
+        }
+
+        .project-actions {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none;
+            gap: 8px;
+        }
+
+        .nav-item:hover .project-actions {
+            display: flex;
+        }
+
+        .project-action {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .project-action:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-main);
+        }
+
+        .drag-handle {
+            cursor: grab;
+            opacity: 0.5;
+            margin-right: -4px;
+        }
+
+        .project-item.sortable-ghost {
+            opacity: 0.3;
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Input Styles */
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--text-muted); }
+        .form-input { 
+            width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.3); 
+            border: 1px solid var(--border); border-radius: 10px; color: #fff; 
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
+        }
+        .form-input:focus { outline: none; border-color: var(--primary); }
+
+        .btn-primary { 
+            background: var(--primary); color: #fff; border: none; 
+            padding: 12px 24px; border-radius: 10px; font-weight: 600; 
+            cursor: pointer; transition: var(--transition);
+        }
+        .btn-primary:hover { background: var(--primary-light); }
+
+        .archived { opacity: 0.6; font-style: italic; }
     </style>
 </head>
 
@@ -407,7 +492,12 @@
     <div class="app-container">
         <aside id="sidebar">
             <div class="nav-section">
-                <div class="nav-title">工程项目</div>
+                <div class="nav-title-row">
+                    <div class="nav-title" style="padding: 0; margin-bottom: 0;">工程项目</div>
+                    <button class="add-btn" onclick="openProjectModal()" title="新增项目">
+                        <i data-lucide="plus-circle" size="18"></i>
+                    </button>
+                </div>
                 <div id="project-list">
                     <!-- Projects populated by JS -->
                 </div>
@@ -445,16 +535,51 @@
     <div id="card-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <div id="modal-tags"></div>
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    <div id="modal-tags"></div>
+                    <select id="modal-project-select" class="form-input" style="width: auto; padding: 4px 12px; font-size: 12px; height: 32px;" onchange="updateMemoProject()">
+                        <option value="">未分类项目</option>
+                    </select>
+                </div>
                 <button class="close-btn" id="modal-close">
                     <i data-lucide="x" size="20"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <h2 id="modal-question" style="margin-bottom: 24px;"></h2>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 16px;">
+                    <h2 id="modal-question" style="flex: 1;" contenteditable="true" onblur="updateMemoTitle()"></h2>
+                    <button class="project-action" onclick="deleteCard()" title="删除卡片" style="color: #ef4444;">
+                        <i data-lucide="trash-2" size="20"></i>
+                    </button>
+                </div>
                 <div id="modal-answer" class="markdown-body"></div>
                 <div id="modal-meta"
                     style="margin-top: 32px; border-top: 1px solid var(--border); padding-top: 20px; font-size: 12px; color: var(--text-muted);">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Edit Modal -->
+    <div id="project-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="project-modal-title">项目管理</h2>
+                <button class="close-btn" onclick="closeProjectModal()">
+                    <i data-lucide="x" size="20"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">项目名称</label>
+                    <input type="text" id="project-name-input" class="form-input" placeholder="输入工程名称...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">项目描述</label>
+                    <textarea id="project-desc-input" class="form-input" rows="3" placeholder="输入描述信息..."></textarea>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 12px;">
+                    <button class="btn-primary" id="save-project-btn" onclick="saveProject()">保存项目</button>
                 </div>
             </div>
         </div>
@@ -469,6 +594,7 @@
         let activeProject = null;
         let searchQuery = '';
         let activeFilter = 'all'; // 'all', 'timeline', 'starred'
+        let editingProjectId = null;
 
         // --- DOM Elements ---
         const projectList = document.getElementById('project-list');
@@ -480,9 +606,21 @@
 
         // --- Functions ---
         async function init() {
+            await fetchProjects();
             await fetchMemos();
+            setupProjectDND();
             setupEventListeners();
             lucide.createIcons();
+        }
+
+        async function fetchProjects() {
+            try {
+                const res = await fetch(`${API_BASE}/projects`);
+                projects = await res.json();
+                renderProjects();
+            } catch (err) {
+                console.error('Failed to load projects:', err);
+            }
         }
 
         async function fetchMemos() {
@@ -490,24 +628,17 @@
                 const res = await fetch(`${API_BASE}/metadata`);
                 const data = await res.json();
                 allMemos = data.map(m => ({
-                    id: m.uuid,
+                    id: m.memo_uuid, // Internal memo UUID
+                    contentUuid: m.uuid, // File UUID (from f.*)
                     question: m.memo_title || m.name,
                     tags: (m.memo_tags || '').split(',').map(t => t.trim()).filter(Boolean),
+                    projectId: m.project_id,
+                    projectName: m.project_name,
                     timestamp: m.created_at,
                     size: m.size,
-                    starred: false // Could derive from a specific tag or DB field
+                    starred: false
                 }));
 
-                // Extract unique tags as projects
-                const tagSet = new Set();
-                allMemos.forEach(m => m.tags.forEach(t => tagSet.add(t)));
-                projects = Array.from(tagSet).sort().map(t => ({
-                    id: t,
-                    name: t,
-                    icon: 'tag'
-                }));
-
-                renderProjects();
                 renderCards();
             } catch (err) {
                 console.error('Failed to load memos:', err);
@@ -517,11 +648,113 @@
 
         function renderProjects() {
             projectList.innerHTML = projects.map(p => `
-                <div class="nav-item ${activeProject === p.id ? 'active' : ''}" onclick="filterByProject('${p.id}')">
-                    <i data-lucide="${p.icon}" size="18"></i> ${p.name}
+                <div class="project-item" data-id="${p.id}">
+                    <div class="nav-item ${activeProject == p.id ? 'active' : ''} ${p.is_archived ? 'archived' : ''}" onclick="filterByProject('${p.id}')">
+                        <i data-lucide="grip-vertical" class="drag-handle" size="14"></i>
+                        <span class="project-name">${p.name}</span>
+                        <div class="project-actions" onclick="event.stopPropagation()">
+                            <button class="project-action" onclick="openProjectModal(${p.id})" title="编辑">
+                                <i data-lucide="edit-3" size="14"></i>
+                            </button>
+                            <button class="project-action" onclick="toggleArchive(${p.id}, ${p.is_archived})" title="${p.is_archived ? '恢复' : '归档'}">
+                                <i data-lucide="${p.is_archived ? 'rotate-ccw' : 'archive'}" size="14"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `).join('');
             lucide.createIcons();
+        }
+
+        function setupProjectDND() {
+            new Sortable(projectList, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: async function() {
+                    const orders = Array.from(projectList.children).map((el, index) => ({
+                        id: el.getAttribute('data-id'),
+                        display_order: index
+                    }));
+                    
+                    try {
+                        const res = await fetch(`${API_BASE}/projects/reorder`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ orders })
+                        });
+                        if (!res.ok) throw new Error('Failed to reorder');
+                        // Update local state
+                        projects.sort((a, b) => {
+                            const oa = orders.find(o => o.id == a.id).display_order;
+                            const ob = orders.find(o => o.id == b.id).display_order;
+                            return oa - ob;
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        alert('更新排序失败');
+                    }
+                }
+            });
+        }
+
+        function openProjectModal(id = null) {
+            editingProjectId = id;
+            if (id) {
+                const p = projects.find(proj => proj.id == id);
+                document.getElementById('project-name-input').value = p.name;
+                document.getElementById('project-desc-input').value = p.description || '';
+                document.getElementById('project-modal-title').textContent = '编辑项目';
+            } else {
+                document.getElementById('project-name-input').value = '';
+                document.getElementById('project-desc-input').value = '';
+                document.getElementById('project-modal-title').textContent = '新增项目';
+            }
+            document.getElementById('project-modal').style.display = 'flex';
+        }
+
+        function closeProjectModal() {
+            document.getElementById('project-modal').style.display = 'none';
+        }
+
+        async function saveProject() {
+            const name = document.getElementById('project-name-input').value.trim();
+            const description = document.getElementById('project-desc-input').value.trim();
+            if (!name) return alert('名称不能为空');
+
+            const payload = { name, description };
+            const method = editingProjectId ? 'PUT' : 'POST';
+            const url = editingProjectId ? `${API_BASE}/projects/${editingProjectId}` : `${API_BASE}/projects`;
+
+            try {
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Save failed');
+                
+                await fetchProjects();
+                closeProjectModal();
+            } catch (err) {
+                console.error(err);
+                alert('保存失败');
+            }
+        }
+
+        async function toggleArchive(id, currentStatus) {
+            try {
+                const res = await fetch(`${API_BASE}/projects/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_archived: currentStatus ? 0 : 1 })
+                });
+                if (!res.ok) throw new Error('Update failed');
+                await fetchProjects();
+            } catch (err) {
+                console.error(err);
+                alert('更新失败');
+            }
         }
 
         function formatBytes(bytes) {
@@ -534,9 +767,10 @@
 
         function renderCards() {
             let filteredCards = [...allMemos].filter(c => {
-                const matchesProject = !activeProject || c.tags.includes(activeProject);
+                const matchesProject = !activeProject || c.projectId == activeProject;
                 const matchesSearch = c.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+                    c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                    (c.projectName && c.projectName.toLowerCase().includes(searchQuery.toLowerCase()));
                 return matchesProject && matchesSearch;
             });
 
@@ -557,7 +791,7 @@
                 cardGrid.innerHTML = filteredCards.map(c => `
                     <div class="card" onclick="openCard('${c.id}')">
                         <div class="card-header">
-                            <div class="card-tag">${c.tags[0] || 'Uncategorized'}</div>
+                            <div class="card-tag">${c.projectName || '未分类'}</div>
                             <span class="card-time">${new Date(c.timestamp).toLocaleDateString()}</span>
                         </div>
                         <div class="card-question">${c.question}</div>
@@ -572,7 +806,7 @@
         }
 
         function filterByProject(projectId) {
-            activeProject = activeProject === projectId ? null : projectId;
+            activeProject = activeProject == projectId ? null : projectId;
             updateViewTitle();
             renderProjects();
             renderCards();
@@ -580,8 +814,8 @@
 
         function updateViewTitle() {
             if (activeProject) {
-                const project = projects.find(p => p.id === activeProject);
-                viewTitle.textContent = project.name;
+                const project = projects.find(p => p.id == activeProject);
+                viewTitle.textContent = project ? project.name : '未知项目';
             } else {
                 switch (activeFilter) {
                     case 'timeline': viewTitle.textContent = '时光轴'; break;
@@ -604,10 +838,18 @@
             
             cardModal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
-            lucide.createIcons();
+            
+            // Populate project select
+            const pSel = document.getElementById('modal-project-select');
+            pSel.innerHTML = '<option value="">未分类项目</option>' + 
+                projects.map(p => `<option value="${p.id}" ${card.projectId == p.id ? 'selected' : ''}>${p.is_archived ? '[已归档]' : ''} ${p.name}</option>`).join('');
 
+            lucide.createIcons();
+            
+            cardModal.dataset.uuid = id; // Store current memo UUID
+            
             try {
-                const res = await fetch(`${API_BASE}/file/${id}/content`);
+                const res = await fetch(`${API_BASE}/file/${card.contentUuid}/content`);
                 if (!res.ok) throw new Error('Failed to load content');
                 const text = await res.text();
                 // Check if it's markdown or pdf (basic check based on extension logic or just render text)
@@ -616,6 +858,66 @@
                 contentDiv.innerHTML = `<p style="color: var(--danger);"><i data-lucide="alert-circle"></i> Error loading document content</p>`;
             }
             lucide.createIcons();
+        }
+
+        async function updateMemoProject() {
+            const id = cardModal.dataset.uuid; // This is the memo's uuid from our mapping
+            const projectId = document.getElementById('modal-project-select').value || null;
+            
+            try {
+                const res = await fetch(`${API_BASE}/memo/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ project_id: projectId })
+                });
+                if (!res.ok) throw new Error('Update failed');
+                await fetchMemos();
+                // Update local projects list UI if needed? No, projects don't change, just memo assignments.
+            } catch (err) {
+                console.error(err);
+                alert('更新项目失败');
+            }
+        }
+
+        async function updateMemoTitle() {
+            const id = cardModal.dataset.uuid;
+            const title = document.getElementById('modal-question').textContent.trim();
+            if (!title) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/memo/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title })
+                });
+                if (!res.ok) throw new Error('Update failed');
+                await fetchMemos();
+            } catch (err) {
+                console.error(err);
+                alert('更新标题失败');
+            }
+        }
+
+        async function deleteCard() {
+            const id = cardModal.dataset.uuid;
+            // Wait, card uuid in index.js is content_uuid for file deletion? 
+            // BuboMemoMgr/index.js line 137: app.delete('/api/card/:uuid' ... SELECT * FROM files WHERE uuid = ?
+            // I need to be sure which UUID I'm using.
+            // In fetchMemos: id: m.uuid (memo_uuid), content_uuid is f.uuid.
+            // Let's update fetchMemos to keep content_uuid.
+            
+            if (!confirm('确定要删除这张知识卡片及其关联文件吗？此操作不可撤销。')) return;
+
+            const card = allMemos.find(c => c.id === id);
+            try {
+                const res = await fetch(`${API_BASE}/card/${card.contentUuid}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Delete failed');
+                closeCard();
+                await fetchMemos();
+            } catch (err) {
+                console.error(err);
+                alert('删除失败');
+            }
         }
 
         function closeCard() {

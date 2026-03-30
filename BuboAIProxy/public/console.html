@@ -4,23 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BuboAIProxy Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #6366f1;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --accent: #22d3ee;
-            --success: #10b981;
+            --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --primary: #0f172a;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --accent: #10b981;
+            --success: #059669;
             --warning: #f59e0b;
-            --danger: #ef4444;
+            --danger: #dc2626;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
@@ -68,7 +69,7 @@
             color: var(--text);
             padding: 10px;
             border-radius: 6px;
-            font-family: inherit;
+            font-family: 'Roboto Condensed', 'Inter', sans-serif;
         }
 
         button {
@@ -215,7 +216,7 @@
                     </div>
                     <button onclick="testCommand()" style="background-color: var(--warning); color: #000; margin-top: 5px;">Run Test Request</button>
                 </div>
-                <div style="flex: 2; background: #000; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto;">
+                <div style="flex: 2; background: #000; border-radius: 8px; padding: 15px; font-family: 'Roboto Condensed', 'Inter', sans-serif; font-size: 13px; max-height: 400px; overflow-y: auto;">
                     <pre id="test-output" style="margin: 0; padding: 0; background: transparent; white-space: pre-wrap; word-wrap: break-word;">Waiting for test execution...</pre>
                 </div>
             </div>

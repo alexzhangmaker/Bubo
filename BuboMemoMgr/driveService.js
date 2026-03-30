@@ -171,6 +171,43 @@ export async function uploadToDrive(uuid, filePath, fileName, mimeType) {
 }
 
 /**
+ * Updates an existing file on Google Drive.
+ */
+export async function updateOnDrive(driveId, filePath, mimeType) {
+    if (!IS_SYNC_ENABLED) {
+        console.log(`ℹ️ Cloud sync is disabled. Skip update for ${driveId}`);
+        return null;
+    }
+    try {
+        console.log(`📤 Updating file ${driveId} on Google Drive...`);
+        const media = {
+            mimeType: mimeType,
+            body: fs.createReadStream(filePath),
+        };
+
+        const res = await drive.files.update({
+            fileId: driveId,
+            media: media,
+            fields: 'id, size, modifiedTime',
+        });
+
+        const size = res.data.size ? parseInt(res.data.size) : (await fs.stat(filePath)).size;
+
+        db.prepare(`
+            UPDATE files 
+            SET size = ?, last_modified = ?, cache_status = 'cached'
+            WHERE drive_id = ?
+        `).run(size, res.data.modifiedTime, driveId);
+
+        console.log(`✅ File updated on Drive: ${driveId}`);
+        return driveId;
+    } catch (error) {
+        console.error('❌ Error updating on Drive:', error.message);
+        throw error;
+    }
+}
+
+/**
  * Trashes a file on Google Drive to permanently delete it from the system.
  */
 export async function deleteFromDrive(driveId) {

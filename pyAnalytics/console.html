@@ -231,6 +231,44 @@
             font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 6px;
             background: #f1f5f9; color: var(--muted); display: inline-block;
         }
+
+        /* ── KPI Cards ── */
+        .kpi-grid { display: grid; gap: 2rem; }
+        .kpi-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            padding: 1.5rem 2rem;
+            box-shadow: var(--card-shadow);
+        }
+        .kpi-card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border);
+        }
+        .kpi-company-name { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
+        .kpi-ticker {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700;
+            color: var(--primary); background: #f1f5f9; padding: 0.25rem 0.6rem; border-radius: 0.4rem;
+        }
+        .kpi-content {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem;
+            background: #fcfcfc; padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);
+        }
+        .kpi-section-title {
+            font-size: 1.1rem; font-weight: 800; color: var(--primary); margin-bottom: 1rem;
+        }
+        .kpi-subsection-title {
+            font-size: 0.9rem; font-weight: 700; color: var(--text); margin: 1.5rem 0 0.75rem;
+        }
+        .kpi-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 0; border-bottom: 1px dashed var(--border);
+            font-size: 0.85rem;
+        }
+        .kpi-row:last-child { border-bottom: none; }
+        .kpi-label { color: var(--text); }
+        .kpi-value { font-weight: 700; color: var(--primary); font-family: 'JetBrains Mono', monospace; }
+        .kpi-date { text-align: right; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.75rem; }
     </style>
 </head>
 <body>
@@ -245,6 +283,7 @@
     <aside class="sidebar">
         <div class="logo">🚀 Bubo Analytics</div>
         <div class="nav-item active" onclick="switchPage('dashboard', this)">🏠 投资组合</div>
+        <div class="nav-item" onclick="switchPage('kpi', this)">📊 资产KPI</div>
         <div class="nav-item" onclick="switchPage('sql', this)">🦆 SQL 分析台</div>
     </aside>
 
@@ -264,7 +303,7 @@
             </div>
 
             <div class="stats-grid">
-                <div class="stat"><label>持仓总市值 (CNY)</label><div class="val" id="s-total-value">—</div></div>
+                <div class="stat"><label>总计资产 (CNY)</label><div class="val" id="s-total-value">—</div></div>
                 <div class="stat"><label>累计投资成本 (CNY)</label><div class="val" id="s-total-cost">—</div></div>
                 <div class="stat"><label>综合回报率</label><div class="val" id="s-profit-pct">—</div></div>
                 <div class="stat"><label>当前持仓单元</label><div class="val" id="s-count">—</div></div>
@@ -277,6 +316,19 @@
                 </div>
                 <!-- Frappe DataTable mounts here -->
                 <div id="holdings-dt"></div>
+            </div>
+        </div>
+
+        <!-- Asset KPI Page -->
+        <div class="page" id="page-kpi">
+            <div style="margin-bottom: 2rem;">
+                <p style="color:var(--muted);font-size:.95rem;">
+                    以下为各主要资产的关键估值与财务KPI展示 (Mock Data 仅供展示效果使用)
+                </p>
+            </div>
+            
+            <div class="kpi-grid" id="kpi-container">
+                <!-- Cards will be injected here -->
             </div>
         </div>
 
@@ -449,7 +501,7 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         document.getElementById('page-' + name).classList.add('active');
         el.classList.add('active');
         
-        const titleMap = { 'dashboard': '投资组合概览', 'sql': 'DuckDB SQL 工作台' };
+        const titleMap = { 'dashboard': '投资组合概览', 'kpi': '资产KPI (Asset KPIs)', 'sql': 'DuckDB SQL 工作台' };
         document.getElementById('page-title').innerText = titleMap[name] || 'Bubo Analytics';
     }
 
@@ -465,6 +517,135 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         if (dates.length) loadDashboard(dates[0]);
     }
     window.loadDates = loadDates;
+
+    // ── KPI Renderer ───────────────────────────────────────────────────────────
+    let kpisRendered = false;
+    function renderKPIs() {
+        if (kpisRendered) return;
+        const mockData = [
+            {
+                ticker: 'AAPL',
+                name: 'Apple Inc.',
+                date: 'As of 3/20/2026',
+                valuation: [
+                    { label: 'Market Cap', value: '70.32B' },
+                    { label: 'Enterprise Value', value: '72.36B' },
+                    { label: 'Trailing P/E', value: '27.86' },
+                    { label: 'Forward P/E', value: '23.98' },
+                    { label: 'PEG Ratio (5yr expected)', value: '1.48' },
+                    { label: 'Price/Sales (ttm)', value: '15.16' },
+                    { label: 'Price/Book (mrq)', value: '8.66' },
+                    { label: 'Enterprise Value/Revenue', value: '15.70' },
+                    { label: 'Enterprise Value/EBITDA', value: '22.37' }
+                ],
+                financials: {
+                    profitability: [
+                        { label: 'Profit Margin', value: '51.59%' },
+                        { label: 'Return on Assets (ttm)', value: '12.15%' },
+                        { label: 'Return on Equity (ttm)', value: '22.31%' }
+                    ],
+                    income: [
+                        { label: 'Revenue (ttm)', value: '4.82B' },
+                        { label: 'Net Income Avi to Common (ttm)', value: '2.48B' },
+                        { label: 'Diluted EPS (ttm)', value: '1.54' }
+                    ],
+                    balanceSheet: [
+                        { label: 'Total Cash (mrq)', value: '1.58B' },
+                        { label: 'Total Debt/Equity (mrq)', value: '28.52%' },
+                        { label: 'Levered Free Cash Flow (ttm)', value: '1.44B' }
+                    ]
+                }
+            },
+            {
+                ticker: 'MSFT',
+                name: 'Microsoft Corporation',
+                date: 'As of 3/20/2026',
+                valuation: [
+                    { label: 'Market Cap', value: '3.12T' },
+                    { label: 'Enterprise Value', value: '3.08T' },
+                    { label: 'Trailing P/E', value: '36.52' },
+                    { label: 'Forward P/E', value: '31.10' },
+                    { label: 'PEG Ratio (5yr expected)', value: '2.10' },
+                    { label: 'Price/Sales (ttm)', value: '13.80' },
+                    { label: 'Price/Book (mrq)', value: '12.45' },
+                    { label: 'Enterprise Value/Revenue', value: '13.50' },
+                    { label: 'Enterprise Value/EBITDA', value: '24.15' }
+                ],
+                financials: {
+                    profitability: [
+                        { label: 'Profit Margin', value: '35.12%' },
+                        { label: 'Return on Assets (ttm)', value: '15.40%' },
+                        { label: 'Return on Equity (ttm)', value: '38.25%' }
+                    ],
+                    income: [
+                        { label: 'Revenue (ttm)', value: '227.5B' },
+                        { label: 'Net Income Avi to Common (ttm)', value: '86.1B' },
+                        { label: 'Diluted EPS (ttm)', value: '11.55' }
+                    ],
+                    balanceSheet: [
+                        { label: 'Total Cash (mrq)', value: '143.0B' },
+                        { label: 'Total Debt/Equity (mrq)', value: '42.10%' },
+                        { label: 'Levered Free Cash Flow (ttm)', value: '67.4B' }
+                    ]
+                }
+            }
+        ];
+
+        const container = document.getElementById('kpi-container');
+        container.innerHTML = mockData.map(d => `
+            <div class="kpi-card">
+                <div class="kpi-card-header">
+                    <div class="kpi-company-name">\${d.name}</div>
+                    <div class="kpi-ticker">\${d.ticker}</div>
+                </div>
+                <div class="kpi-content">
+                    <div class="kpi-col">
+                        <h3 class="kpi-section-title">Valuation Measures</h3>
+                        <div class="kpi-date">\${d.date}</div>
+                        \${d.valuation.map(v => \`
+                            <div class="kpi-row">
+                                <span class="kpi-label">\${v.label}</span>
+                                <span class="kpi-value">\${v.value}</span>
+                            </div>
+                        \`).join('')}
+                    </div>
+                    <div class="kpi-col">
+                        <h3 class="kpi-section-title">Financial Highlights</h3>
+                        
+                        <h4 class="kpi-subsection-title" style="margin-top: 0;">Profitability and Income Statement</h4>
+                        \${d.financials.profitability.map(v => \`
+                            <div class="kpi-row">
+                                <span class="kpi-label">\${v.label}</span>
+                                <span class="kpi-value">\${v.value}</span>
+                            </div>
+                        \`).join('')}
+                        \${d.financials.income.map(v => \`
+                            <div class="kpi-row">
+                                <span class="kpi-label">\${v.label}</span>
+                                <span class="kpi-value">\${v.value}</span>
+                            </div>
+                        \`).join('')}
+
+                        <h4 class="kpi-subsection-title">Balance Sheet and Cash Flow</h4>
+                        \${d.financials.balanceSheet.map(v => \`
+                            <div class="kpi-row">
+                                <span class="kpi-label">\${v.label}</span>
+                                <span class="kpi-value">\${v.value}</span>
+                            </div>
+                        \`).join('')}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        kpisRendered = true;
+    }
+    
+    // Override window.switchPage to intersept KPI load
+    const origSwitchPage = switchPage;
+    window.switchPage = function(name, el) {
+        origSwitchPage(name, el);
+        if (name === 'kpi') renderKPIs();
+    }
 
     // ── Holdings DataTable instance ────────────────────────────────────────────
     let holdingsDT = null;
@@ -563,7 +744,7 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
                     }
                 });
 
-                const whereClause = [`snapshot_date = '${date}'`, ...filters].join(' AND ');
+                const whereClause = [`snapshot_date = '${date}'`, `ticker != 'TOTAL_ASSETS'`, ...filters].join(' AND ');
                 const sql = `SELECT * FROM ${tableName} WHERE ${whereClause} ORDER BY totalValueTTMCNY DESC`;
                 
                 (async () => {
@@ -620,17 +801,22 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
                        shares, costPerShare, quoteTTM,
                        totalCostCNY, totalValueTTMCNY, earningPercent
                 FROM snapshots
-                WHERE snapshot_date = '${date}'
+                WHERE snapshot_date = '${date}' AND ticker != 'TOTAL_ASSETS'
                 ORDER BY totalValueTTMCNY DESC
             `);
             const rows = arrowToRows(res);
 
             // Stats via DuckDB-Wasm
             const sreq = await window._duckQuery(`
-                SELECT ROUND(SUM(totalValueTTMCNY),2) AS tv,
-                       ROUND(SUM(totalCostCNY),2)      AS tc,
-                       COUNT(*) AS cnt
-                FROM snapshots WHERE snapshot_date = '${date}'
+                SELECT 
+                    COALESCE(
+                        (SELECT ROUND(totalValueTTMCNY, 2) FROM snapshots WHERE snapshot_date = '${date}' AND ticker = 'TOTAL_ASSETS'),
+                        ROUND(SUM(totalValueTTMCNY), 2)
+                    ) AS tv,
+                    ROUND(SUM(totalCostCNY),2) AS tc,
+                    COUNT(*) AS cnt
+                FROM snapshots 
+                WHERE snapshot_date = '${date}' AND ticker != 'TOTAL_ASSETS'
             `);
             const s = arrowToRows(sreq)[0];
             const pnl = s.tc > 0 ? ((s.tv - s.tc) / s.tc * 100) : 0;

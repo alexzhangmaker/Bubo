@@ -66,6 +66,8 @@ def main():
 
     # 4. Enrich and Insert
     inserted_count = 0
+    total_holdings_cny = 0.0
+
     for item in portfolio_data:
         ticker = item['ticker']
         info = sec_map.get(ticker, {})
@@ -75,6 +77,7 @@ def main():
         quote = item.get('quoteTTM', 0)
         ex_rate = item.get('exchangeRate', 1.0)
         total_value_cny = shares * quote * ex_rate
+        total_holdings_cny += total_value_cny
         
         record = (
             today,
@@ -104,6 +107,56 @@ def main():
             inserted_count += 1
         except Exception as e:
             print(f"Failed to record {ticker}: {e}")
+
+    # 5. Fetch Other Assets and calculate Total Assets
+    total_other_assets_cny = 0.0
+    try:
+        print(f"Fetching other assets from {ACCOUNTING_SERVICE_API}/other-assets...")
+        resp = requests.get(f"{ACCOUNTING_SERVICE_API}/other-assets")
+        if resp.ok:
+            other_data = resp.json()
+            for item in other_data:
+                currency = item.get('currency', 'CNY')
+                amount = item.get('amount', 0)
+                ex_rate = 1.0
+                if currency != 'CNY':
+                    try:
+                        ex_resp = requests.get(f"{MKT_SERVICE_API}/exrate/{currency}/CNY")
+                        if ex_resp.ok:
+                            ex_rate = ex_resp.json().get('rate', 1.0)
+                    except:
+                        pass
+                total_other_assets_cny += (amount * ex_rate)
+    except Exception as e:
+        print(f"Error fetching other assets: {e}")
+
+    total_assets_cny = total_holdings_cny + total_other_assets_cny
+    
+    # Insert TOTAL_ASSETS row
+    record_total = (
+        today,
+        'TOTAL_ASSETS',
+        '总计账户资产',
+        '-',
+        '汇总',
+        'CNY',
+        1.0,
+        total_assets_cny,
+        total_assets_cny,
+        total_assets_cny,
+        1.0,
+        total_assets_cny,
+        0.0,
+        datetime.now().isoformat()
+    )
+    cursor.execute('''
+        INSERT OR REPLACE INTO snapshots (
+            snapshot_date, ticker, name, country, type, currency, 
+            shares, costPerShare, quoteTTM, totalCostCNY, exRate, 
+            totalValueTTMCNY, earningPercent, lastAggregated
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', record_total)
+    inserted_count += 1
 
     conn.commit()
     conn.close()
