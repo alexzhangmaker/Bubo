@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import sqlite3
 import os
 import json
@@ -91,6 +92,59 @@ def get_all_data():
     rows = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return rows
+
+@app.get("/api/data/accounts/all")
+def get_all_accounts_data():
+    """Return all account snapshot records as a flat JSON array for DuckDB-Wasm ingestion."""
+    try:
+        conn = _connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM account_snapshots ORDER BY snapshot_date, accountID")
+        rows = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return rows
+    except sqlite3.OperationalError:
+        # If the table doesn't exist yet, return an empty list gracefully
+        return []
+
+
+# --- Company Financials APIs ---
+
+class SQLRequest(BaseModel):
+    sql: str
+
+@app.get("/api/data/financials/all")
+def get_all_financials():
+    """Return all company financials records as a flat JSON array."""
+    try:
+        conn = _connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM company_financials ORDER BY ticker, year")
+        rows = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return rows
+    except sqlite3.OperationalError:
+        return []
+
+@app.post("/api/sql/execute")
+def execute_sql(req: SQLRequest):
+    """Execute raw SQL statements against the SQLite database."""
+    try:
+        conn = _connect()
+        cursor = conn.cursor()
+        cursor.execute(req.sql)
+        conn.commit()
+        
+        if req.sql.strip().upper().startswith("SELECT"):
+            rows = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return {"status": "success", "rows": rows}
+        else:
+            rowcount = cursor.rowcount
+            conn.close()
+            return {"status": "success", "message": f"Executed successfully. Rows affected: {rowcount}"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # --- Parquet export for DuckDB-Wasm (binary fetch) ---

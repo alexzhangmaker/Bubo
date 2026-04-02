@@ -248,38 +248,41 @@
                     <h2 class="section-title">添加/更新证券信息</h2>
                 </div>
                 <form id="sec-form" onsubmit="saveSecInfo(event)">
-                    <div class="form-grid">
-                        <div class="form-group">
+                    <div style="display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 0 1 100px;">
                             <label>代码 (Ticker)</label>
                             <input type="text" id="s-ticker" required>
                         </div>
-                        <div class="form-group">
-                            <label>公司名称 (Company Name)</label>
+                        <div class="form-group" style="flex: 1 1 180px;">
+                            <label>公司名称 (Name)</label>
                             <input type="text" id="s-name" required>
                         </div>
-                        <div class="form-group">
-                            <label>上市国家 (Country)</label>
-                            <input type="text" id="s-country" required placeholder="US, CN, HK...">
+                        <div class="form-group" style="flex: 0 1 100px;">
+                            <label>国家 (Country)</label>
+                            <input type="text" id="s-country" required placeholder="如: CN">
                         </div>
-                        <div class="form-group">
-                            <label>交易货币 (Currency)</label>
-                            <input type="text" id="s-currency" required placeholder="USD, CNY...">
+                        <div class="form-group" style="flex: 0 1 90px;">
+                            <label>货币 (Currency)</label>
+                            <input type="text" id="s-currency" required placeholder="如: USD">
                         </div>
-                        <div class="form-group">
-                            <label>资产类型 (Asset Type)</label>
+                        <div class="form-group" style="flex: 0 1 130px;">
+                            <label>类型 (Type)</label>
                             <select id="s-type" required>
-                                <option value="Stock">股票 (Stock)</option>
-                                <option value="Bond">债券 (Bond)</option>
+                                <option value="EQUITY">EQUITY</option>
+                                <option value="Stock">Stock</option>
+                                <option value="Bond">Bond</option>
                                 <option value="ETF">ETF</option>
-                                <option value="Crypto">加密货币</option>
+                                <option value="Crypto">Crypto</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="flex: 2 1 200px;">
                             <label>标签 (Tags, 逗号分隔)</label>
                             <input type="text" id="s-tags" placeholder="Tech, AI, Nasdaq100">
                         </div>
+                        <button type="submit" class="btn btn-primary" title="保存证券信息" style="height: 39px; padding: 0 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1px;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                        </button>
                     </div>
-                    <button type="submit" class="btn btn-primary">保存证券信息</button>
                 </form>
             </div>
 
@@ -289,10 +292,12 @@
                     <div style="display:flex; gap: 0.5rem; flex-wrap: wrap;">
                         <input type="text" id="sec-filter-ticker" placeholder="过滤 Ticker..." style="width: 100px; font-size: 0.8rem; padding: 0.4rem;" oninput="applySecFilters()">
                         <input type="text" id="sec-filter-name" placeholder="过滤 名称..." style="width: 120px; font-size: 0.8rem; padding: 0.4rem;" oninput="applySecFilters()">
+                        <input type="text" id="sec-filter-tag" placeholder="过滤 标签..." style="width: 100px; font-size: 0.8rem; padding: 0.4rem;" oninput="applySecFilters()">
                         <input type="text" id="sec-filter-country" placeholder="国家..." style="width: 80px; font-size: 0.8rem; padding: 0.4rem;" oninput="applySecFilters()">
                         <input type="text" id="sec-filter-currency" placeholder="币种..." style="width: 80px; font-size: 0.8rem; padding: 0.4rem;" oninput="applySecFilters()">
                         <select id="sec-filter-type" style="width: 100px; font-size: 0.8rem; padding: 0.4rem;" onchange="applySecFilters()">
                             <option value="">所有类型</option>
+                            <option value="EQUITY">EQUITY</option>
                             <option value="Stock">Stock</option>
                             <option value="Bond">Bond</option>
                             <option value="ETF">ETF</option>
@@ -395,16 +400,23 @@
         function applySecFilters() {
             const ticker = document.getElementById('sec-filter-ticker').value.toLowerCase();
             const name = document.getElementById('sec-filter-name').value.toLowerCase();
+            const tag = document.getElementById('sec-filter-tag').value.toLowerCase();
             const country = document.getElementById('sec-filter-country').value.toLowerCase();
             const currency = document.getElementById('sec-filter-currency').value.toLowerCase();
             const type = document.getElementById('sec-filter-type').value;
 
             const filtered = (window._allSecInfo || []).filter(s => {
+                let tags = [];
+                if (s.tags) {
+                    tags = typeof s.tags === 'string' ? (s.tags.startsWith('[') ? JSON.parse(s.tags) : s.tags.split(',')) : s.tags;
+                }
+                const hasTag = !tag || tags.some(t => String(t).toLowerCase().includes(tag));
+
                 return (!ticker || s.ticker.toLowerCase().includes(ticker)) &&
                        (!name || s.companyName.toLowerCase().includes(name)) &&
                        (!country || s.listingCountry.toLowerCase().includes(country)) &&
                        (!currency || s.currency.toLowerCase().includes(currency)) &&
-                       (!type || s.assetType === type);
+                       (!type || s.assetType === type) && hasTag;
             });
             renderSecRows(filtered);
         }
@@ -419,10 +431,12 @@
                             <td onclick="editCell(this, '${s.ticker}', 'companyName')">${s.companyName}</td>
                             <td onclick="editCell(this, '${s.ticker}', 'listingCountry')">${s.listingCountry}</td>
                             <td onclick="editCell(this, '${s.ticker}', 'currency')">${s.currency}</td>
-                            <td onclick="editCell(this, '${s.ticker}', 'assetType')"><span class="badge" style="background: var(--primary)">${s.assetType}</span></td>
+                            <td onclick="editCell(this, '${s.ticker}', 'assetType')"><span class="badge" style="background: var(--primary); color: white; border-color: var(--primary);">${s.assetType}</span></td>
                             <td onclick="editCell(this, '${s.ticker}', 'tags')">${tags.map(t => `<span class="badge">${t}</span>`).join('')}</td>
                             <td>
-                                <button class="btn btn-danger btn-sm" onclick="deleteSecInfo('${s.ticker}')">删除</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteSecInfo('${s.ticker}')" title="删除" style="padding: 0.3rem 0.5rem; display: inline-flex; align-items: center; justify-content: center;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
                             </td>
                         </tr>
                     `;

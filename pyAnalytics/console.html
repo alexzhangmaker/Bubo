@@ -13,6 +13,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/frappe-datatable@1.1.1/dist/frappe-datatable.min.js"></script>
 
+    <!-- Chart.js dependency -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
             --primary: #0f172a;
@@ -282,8 +285,11 @@
 
     <aside class="sidebar">
         <div class="logo">🚀 Bubo Analytics</div>
-        <div class="nav-item active" onclick="switchPage('dashboard', this)">🏠 投资组合</div>
+        <div class="nav-item" onclick="switchPage('dashboard', this)">🏠 投资组合</div>
+        <div class="nav-item" onclick="switchPage('accounts', this)">🏦 账户视图</div>
         <div class="nav-item" onclick="switchPage('kpi', this)">📊 资产KPI</div>
+        <div class="nav-item" onclick="switchPage('financials', this)">📈 公司财务概览</div>
+        <div class="nav-item" onclick="switchPage('tags', this)">🏷️ 资产标签视图</div>
         <div class="nav-item" onclick="switchPage('sql', this)">🦆 SQL 分析台</div>
     </aside>
 
@@ -319,6 +325,23 @@
             </div>
         </div>
 
+        <!-- Accounts Page -->
+        <div class="page" id="page-accounts">
+            <div class="ctrl-bar">
+                <label style="color:var(--muted);font-weight:600;font-size:.9rem">选择镜像日期</label>
+                <select id="acc-date-select" onchange="loadAccounts(this.value)"></select>
+                <span id="acc-loading-indicator" style="color:var(--accent);font-weight:600;font-size:.85rem;display:none">处理中…</span>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">账户资产汇总</span>
+                    <span id="acc-table-meta" class="query-meta"></span>
+                </div>
+                <div id="accounts-dt"></div>
+            </div>
+        </div>
+
         <!-- Asset KPI Page -->
         <div class="page" id="page-kpi">
             <div style="margin-bottom: 2rem;">
@@ -332,7 +355,77 @@
             </div>
         </div>
 
+        <!-- Financials Page -->
+        <div class="page" id="page-financials">
+            <div style="margin-bottom: 2rem;">
+                <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">公司财务概览</h2>
+                <p style="color:var(--muted);font-size:.95rem;">
+                    在此管理和查看上市公司的历年核心财务指与专有KPI序列。
+                </p>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">
+                    <span class="card-title">快速录入 (执行 SQL)</span>
+                </div>
+                <div style="padding: 1.5rem;">
+                    <textarea class="sql-editor" id="fin-sql-input" spellcheck="false" placeholder="在此粘贴 INSERT / UPDATE / DELETE 语句..."></textarea>
+                    <div style="display:flex;gap:1.5rem;align-items:center;margin-top:1.25rem">
+                        <button class="run-btn" id="fin-sql-btn" onclick="executeFinancialsSQL()">⚡ 执行与提交</button>
+                        <span id="fin-sql-meta" class="query-meta"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="financials-container">
+                <!-- Data cards will go here -->
+            </div>
+        </div>
+
         <!-- SQL Page -->
+        <div class="page" id="page-tags">
+            <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">资产标签多维分析</h2>
+            <div style="display:flex; gap:1rem; align-items:flex-end; margin-bottom: 1.5rem;">
+                <!-- Snapshot date selector for tag analysis -->
+                <div>
+                    <label style="font-weight:600; font-size:0.875rem; color:var(--muted); display:block;">分析快照日期</label>
+                    <select id="tags-date-select" class="query-input" style="width: 200px; padding:0.5rem; font-size:1rem;"></select>
+                </div>
+                <!-- Fetch tags button -->
+                <button class="btn" style="background:var(--accent); color:white" onclick="loadTagsView()">加载可用标签</button>
+            </div>
+
+            <!-- Tags selector container -->
+            <div id="tags-selector-card" class="card" style="margin-bottom: 1.5rem; display: none;">
+                <div style="font-weight: 600; margin-bottom: 0.75rem;">请选择要横向对比分析的资产标签 (Tags)</div>
+                <div id="tags-checkboxes" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;"></div>
+                <button class="btn btn-primary" onclick="calculateTagsRatio()">生成对比图表</button>
+            </div>
+
+            <!-- Results area -->
+            <div id="tags-result-card" class="card" style="margin-bottom: 1.5rem; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem;">
+                    <div>
+                        <div style="font-size: 0.875rem; color: var(--muted);">大盘(快照)内所有有价证券总额</div>
+                        <div id="tags-total-val" style="font-size: 1.25rem; font-weight: 700;">-</div>
+                    </div>
+                     <div>
+                        <div style="font-size: 0.875rem; color: var(--muted);">选中标签覆盖的排重总额</div>
+                        <div id="tags-selected-val" style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">-</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.875rem; color: var(--muted);">合并占比</div>
+                        <div id="tags-ratio" style="font-size: 2rem; font-weight: 800; color: var(--accent);">-</div>
+                    </div>
+                </div>
+
+                <!-- Chart.js Container -->
+                <div style="position: relative; height: 350px; width: 100%;">
+                    <canvas id="tag-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <div class="page" id="page-sql">
             <div style="margin-bottom: 2rem;">
                 <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem;">DuckDB SQL 工作台</h2>
@@ -404,7 +497,25 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
 
         await conn.query(`CREATE TABLE snapshots (${colDefs})`);
         await conn.query(`INSERT INTO snapshots VALUES ${vals}`);
-        console.log(`DuckDB: ${rows.length} rows loaded`);
+        console.log(`DuckDB: ${rows.length} rows loaded into snapshots`);
+
+        // Load account_snapshots
+        const accRes = await fetch('/api/data/accounts/all');
+        const accRows = await accRes.json();
+        if (accRows.length) {
+            const accCols = Object.keys(accRows[0]);
+            const accColDefs = accCols.map(c => {
+                const v = accRows.find(r => r[c] != null)?.[c];
+                return `"${c}" ${typeof v === 'number' ? 'DOUBLE' : 'VARCHAR'}`;
+            }).join(', ');
+            const accVals = accRows.map(r => `(${accCols.map(c => {
+                const v = r[c];
+                return v == null ? 'NULL' : typeof v === 'number' ? v : `'${String(v).replace(/'/g, "''")}'`;
+            }).join(',')})`).join(',\n');
+            await conn.query(`CREATE TABLE account_snapshots (${accColDefs})`);
+            await conn.query(`INSERT INTO account_snapshots VALUES ${accVals}`);
+            console.log(`DuckDB: ${accRows.length} rows loaded into account_snapshots`);
+        }
     }
 
     window._duckQuery = sql => conn.query(sql);
@@ -480,6 +591,19 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
                 await conn.query('DELETE FROM snapshots');
                 await conn.query(`INSERT INTO snapshots VALUES ${vals}`);
             }
+
+            // Reload accounts into DuckDB
+            const accDataRes = await fetch('/api/data/accounts/all');
+            const accRows = await accDataRes.json();
+            if (accRows.length) {
+                const accCols = Object.keys(accRows[0]);
+                const accVals = accRows.map(r => `(${accCols.map(c => {
+                    const v = r[c];
+                    return v == null ? 'NULL' : typeof v === 'number' ? v : `'${String(v).replace(/'/g, "''")}'`;
+                }).join(',')})`).join(',\n');
+                await conn.query('DELETE FROM account_snapshots');
+                await conn.query(`INSERT INTO account_snapshots VALUES ${accVals}`);
+            }
             
             await loadDates(); // refreshes the select options AND auto loads latest date dashboard
             alert('最新快照数据已经拉取并全量刷新！');
@@ -501,8 +625,21 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         document.getElementById('page-' + name).classList.add('active');
         el.classList.add('active');
         
-        const titleMap = { 'dashboard': '投资组合概览', 'kpi': '资产KPI (Asset KPIs)', 'sql': 'DuckDB SQL 工作台' };
+        const titleMap = { 
+            'dashboard': '投资组合概览', 
+            'accounts': '账户维度视图',
+            'kpi': '资产KPI (Asset KPIs)', 
+            'financials': '公司财务概览',
+            'tags': '资产标签视图',
+            'sql': 'DuckDB SQL 工作台' 
+        };
         document.getElementById('page-title').innerText = titleMap[name] || 'Bubo Analytics';
+
+        if (name === 'accounts') {
+            const date = document.getElementById('date-select').value;
+            document.getElementById('acc-date-select').value = date;
+            loadAccounts(date);
+        }
     }
 
     function toggleSidebar() {
@@ -513,8 +650,17 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
     async function loadDates() {
         const dates = await (await fetch('/api/dates')).json();
         const sel = document.getElementById('date-select');
-        sel.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
-        if (dates.length) loadDashboard(dates[0]);
+        const accSel = document.getElementById('acc-date-select');
+        const options = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+        sel.innerHTML = options;
+        if (accSel) accSel.innerHTML = options;
+        
+        const tagSel = document.getElementById('tags-date-select');
+        if (tagSel) tagSel.innerHTML = options;
+        
+        if (dates.length) {
+            loadDashboard(dates[0]);
+        }
     }
     window.loadDates = loadDates;
 
@@ -640,11 +786,220 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         kpisRendered = true;
     }
     
-    // Override window.switchPage to intersept KPI load
+    // Override window.switchPage to intersept KPI and Financials load
     const origSwitchPage = switchPage;
     window.switchPage = function(name, el) {
         origSwitchPage(name, el);
         if (name === 'kpi') renderKPIs();
+        if (name === 'financials') loadFinancials();
+    }
+
+    // ── Financials Data Logic ──────────────────────────────────────────────
+    let financialsDTs = {};
+
+    async function loadFinancials() {
+        try {
+            const res = await fetch('/api/data/financials/all');
+            const rows = await res.json();
+            
+            const container = document.getElementById('financials-container');
+            if (!rows || rows.length === 0) {
+                container.innerHTML = '<div class="kpi-card"><p style="color:var(--muted)">暂无财务数据，请使用上方控件通过 SQL 录入。</p></div>';
+                return;
+            }
+
+            // Group by ticker
+            const grouped = _.groupBy(rows, 'ticker');
+            
+            container.innerHTML = '';
+            financialsDTs = {};
+
+            // Metrics to display
+            const metricKeys = [
+                { id: 'operating_cash_flow', name: '经营活动现金流' },
+                { id: 'capital_expenditure', name: '资本开支' },
+                { id: 'free_cash_flow', name: '自由现金流' },
+                { id: 'interest_bearing_debt', name: '有息负债' },
+                { id: 'interest_expense', name: '利息支出' },
+                { id: 'net_profit', name: '归母净利润' },
+                { id: 'eps', name: '每股收益 (EPS)' },
+                { id: 'dps', name: '每股股息 (DPS)' }
+            ];
+
+            for (const [ticker, data] of Object.entries(grouped)) {
+                // Sort data by year ascending
+                data.sort((a,b) => a.year - b.year);
+                const years = data.map(d => d.year);
+                const companyName = data[0].company || ticker;
+
+                // Gather dynamic specific KPIs across all years
+                let kpiNames = new Set();
+                data.forEach(d => {
+                    if (d.specific_kpis) {
+                        try {
+                            const parsed = JSON.parse(d.specific_kpis);
+                            Object.keys(parsed).forEach(k => kpiNames.add(k));
+                        } catch (e) {}
+                    }
+                });
+
+                // Build pivoted rows
+                const pivotedRows = [];
+
+                // Add standard metrics
+                metricKeys.forEach(m => {
+                    let row = { indicator: m.name, indicator_id: m.id };
+                    data.forEach(d => { row[d.year] = d[m.id]; });
+                    pivotedRows.push(row);
+                });
+
+                // Add specific KPIs
+                if (kpiNames.size > 0) {
+                    kpiNames.forEach(k => {
+                        let row = { indicator: k + ' (KPI)', indicator_id: k };
+                        data.forEach(d => {
+                            let val = null;
+                            if (d.specific_kpis) {
+                                try {
+                                    const parsed = JSON.parse(d.specific_kpis);
+                                    val = parsed[k];
+                                } catch (e) {}
+                            }
+                            row[d.year] = val;
+                        });
+                        pivotedRows.push(row);
+                    });
+                }
+
+                // Build layout
+                const blockId = ticker.replace(/[^a-zA-Z0-9]/g, '');
+                const cardId = `fin-card-${blockId}`;
+                const dtId = `fin-dt-${blockId}`;
+                
+                const cardHtml = `
+                <div class="card" id="${cardId}" style="margin-bottom: 2rem;">
+                    <div class="card-header">
+                        <span class="card-title">${companyName} <span class="ticker-badge" style="margin-left:8px;font-size:0.75rem">${ticker}</span></span>
+                        <span class="query-meta">${data.length} 年序列数据</span>
+                    </div>
+                    <div id="${dtId}"></div>
+                </div>`;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+
+                // Setup Data Table
+                const columns = [
+                    { name: '财务指标', id: 'indicator', editable: false, resizable: true, width: 220, format: v => `<b>${v}</b>` }
+                ];
+                years.forEach(y => {
+                    columns.push({
+                        name: String(y), id: String(y), editable: false, resizable: true, width: 140, align: 'right',
+                        format: v => v != null && v !== '' ? fmt(v, 2) : '—'
+                    });
+                });
+
+                financialsDTs[ticker] = new DataTable(document.getElementById(dtId), {
+                    columns: columns,
+                    data: pivotedRows,
+                    layout: { fixedHeight: false },
+                    serialNoColumn: false,
+                    checkboxColumn: false,
+                    inlineFilters: false
+                });
+            }
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('financials-container').innerHTML = `<p style="color:var(--down)">加载财务数据失败: ${e.message}</p>`;
+        }
+    }
+
+    async function executeFinancialsSQL() {
+        const sql = document.getElementById('fin-sql-input').value.trim();
+        if (!sql) return;
+
+        const btn = document.getElementById('fin-sql-btn');
+        const meta = document.getElementById('fin-sql-meta');
+        
+        btn.disabled = true;
+        meta.innerText = '执行中...';
+        meta.style.color = 'var(--muted)';
+
+        try {
+            const res = await fetch('/api/sql/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sql })
+            });
+            
+            let out = await res.json();
+            if (!res.ok) throw new Error(out.detail || JSON.stringify(out));
+
+            meta.innerText = out.message || '执行成功!';
+            meta.style.color = 'var(--accent)';
+            document.getElementById('fin-sql-input').value = ''; 
+            
+            // Reload data instantly
+            await loadFinancials();
+        } catch (e) {
+            meta.innerText = `执行失败: ${e.message}`;
+            meta.style.color = 'var(--down)';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ── Accounts DataTable instance ──────────────────────────────────────────
+    let accountsDT = null;
+    const ACCOUNT_COLS = [
+        { name: '账户名 (AccountID)', id: 'accountID', format: v => {
+            if (v === 'TOTAL_ASSETS') return `<b style="color:var(--primary)">汇总合计 (TOTAL)</b>`;
+            return `<span class="ticker-badge" style="background:var(--accent-dim);color:var(--accent)">${v}</span>`;
+        }, editable: false, resizable: true, width: 250 },
+        { name: '总成本 (CNY)', id: 'totalCostCNY', format: v => `¥ ${fmt(v)}`, editable: false, resizable: true, width: 160, align: 'right' },
+        { name: '当前现值 (CNY)', id: 'totalValueTTMCNY', format: v => `<b style="color:var(--primary)">¥ ${fmt(v)}</b>`, editable: false, resizable: true, width: 180, align: 'right' },
+        { name: '盈亏率 %', id: 'profitPercent', format: v => {
+            const n = Number(v);
+            const cls = n >= 0 ? 'up' : 'down';
+            return `<span class="${cls}" style="font-weight:800">${n >= 0 ? '+' : ''}${n.toFixed(2)}%</span>`;
+        }, editable: false, resizable: true, width: 120, align: 'right' },
+    ];
+
+    async function loadAccounts(date) {
+        if (!window._duckReady) return;
+        document.getElementById('acc-loading-indicator').style.display = 'block';
+        try {
+            const res = await window._duckQuery(`
+                SELECT * FROM account_snapshots 
+                WHERE snapshot_date = '${date}' 
+                ORDER BY CASE WHEN accountID = 'TOTAL_ASSETS' THEN 1 ELSE 0 END, totalValueTTMCNY DESC
+            `);
+            const rows = arrowToRows(res);
+            buildAccountsDT(rows);
+            document.getElementById('acc-table-meta').innerText = `${rows.length - 1} 个账户条目`;
+        } catch (err) {
+            console.error('loadAccounts error:', err);
+        } finally {
+            document.getElementById('acc-loading-indicator').style.display = 'none';
+        }
+    }
+
+    function buildAccountsDT(rows) {
+        const container = document.getElementById('accounts-dt');
+        if (accountsDT) {
+            accountsDT.refresh(rows);
+        } else {
+            accountsDT = new DataTable(container, {
+                columns: ACCOUNT_COLS,
+                data: rows,
+                layout: { fixedHeight: true, tableHeight: '500px' },
+                enableClusterize: true,
+                serialNoColumn: false,
+                checkboxColumn: false,
+                inlineFilters: true,
+            });
+            const filterRow = container.querySelector('[data-is-filter]');
+            if (filterRow) filterRow.style.display = 'table-row';
+        }
     }
 
     // ── Holdings DataTable instance ────────────────────────────────────────────
@@ -660,6 +1015,8 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         { name: '平均成本',          id: 'costPerShare',    format: v => fmt(v), editable: false, resizable: true, width: 110, align: 'right' },
         { name: '当前价格',          id: 'quoteTTM',        format: v => fmt(v), editable: false, resizable: true, width: 110, align: 'right' },
         { name: '持仓市值 (CNY)',    id: 'totalValueTTMCNY', format: v => `<b style="color:var(--primary)">¥ ${fmt(v)}</b>`, editable: false, resizable: true, width: 160, align: 'right' },
+        { name: '成本占比',          id: 'costRatio',        format: v => v != null ? `${v.toFixed(2)}%` : '—', editable: false, resizable: true, width: 100, align: 'right' },
+        { name: '市值占比',          id: 'valueRatio',       format: v => v != null ? `<span style="font-weight:700; color:var(--accent)">${v.toFixed(2)}%</span>` : '—', editable: false, resizable: true, width: 100, align: 'right' },
         { name: '盈亏率 %',          id: 'earningPercent',  format: v => {
             const n = Number(v);
             const cls = n >= 0 ? 'up' : 'down';
@@ -745,7 +1102,19 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
                 });
 
                 const whereClause = [`snapshot_date = '${date}'`, `ticker != 'TOTAL_ASSETS'`, ...filters].join(' AND ');
-                const sql = `SELECT * FROM ${tableName} WHERE ${whereClause} ORDER BY totalValueTTMCNY DESC`;
+                const sql = `
+                    WITH snapshot_totals AS (
+                        SELECT SUM(totalCostCNY) as globalCost, SUM(totalValueTTMCNY) as globalValue
+                        FROM snapshots
+                        WHERE snapshot_date = '${date}' AND ticker != 'TOTAL_ASSETS'
+                    )
+                    SELECT *, 
+                           (totalCostCNY * 100.0 / NULLIF(globalCost, 0)) as costRatio,
+                           (totalValueTTMCNY * 100.0 / NULLIF(globalValue, 0)) as valueRatio
+                    FROM snapshots, snapshot_totals
+                    WHERE ${whereClause} 
+                    ORDER BY totalValueTTMCNY DESC
+                `;
                 
                 (async () => {
                     try {
@@ -797,10 +1166,17 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         try {
             // Holdings data via DuckDB-Wasm
             const res = await window._duckQuery(`
+                WITH snapshot_totals AS (
+                    SELECT SUM(totalCostCNY) as globalCost, SUM(totalValueTTMCNY) as globalValue
+                    FROM snapshots
+                    WHERE snapshot_date = '${date}' AND ticker != 'TOTAL_ASSETS'
+                )
                 SELECT ticker, name, type, country, currency,
                        shares, costPerShare, quoteTTM,
-                       totalCostCNY, totalValueTTMCNY, earningPercent
-                FROM snapshots
+                       totalCostCNY, totalValueTTMCNY, earningPercent,
+                       (totalCostCNY * 100.0 / NULLIF(globalCost, 0)) as costRatio,
+                       (totalValueTTMCNY * 100.0 / NULLIF(globalValue, 0)) as valueRatio
+                FROM snapshots, snapshot_totals
                 WHERE snapshot_date = '${date}' AND ticker != 'TOTAL_ASSETS'
                 ORDER BY totalValueTTMCNY DESC
             `);
@@ -899,6 +1275,152 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
     document.getElementById('sql-input').addEventListener('keydown', e => {
         if (e.ctrlKey && e.key === 'Enter') runSQL();
     });
+
+    // ── Asset Tags View (资产标签视图) ───────────────────────────────────────
+    let tagChart = null;
+    let allSecuritiesData = [];
+
+    async function loadTagsView() {
+        try {
+            // Fetch tag info from MktService
+            const res = await fetch('http://localhost:3009/api/securities');
+            if (!res.ok) throw new Error('Could not fetch securities from MktService');
+            allSecuritiesData = await res.json();
+            
+            let tagSet = new Set();
+            allSecuritiesData.forEach(s => {
+                let sTags = s.tags ? (typeof s.tags === 'string' ? (s.tags.startsWith('[') ? JSON.parse(s.tags) : s.tags.split(',')) : s.tags) : [];
+                sTags.forEach(t => tagSet.add(String(t).trim()));
+            });
+
+            const checkboxesDiv = document.getElementById('tags-checkboxes');
+            checkboxesDiv.innerHTML = Array.from(tagSet).filter(t => t).sort().map(t => `
+                <label style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.875rem; background:var(--bg); border:1px solid var(--border); padding:0.25rem 0.5rem; border-radius:0.25rem; cursor:pointer;">
+                    <input type="checkbox" value="${t}" class="tag-chk"> <b>${t}</b>
+                </label>
+            `).join('');
+
+            document.getElementById('tags-selector-card').style.display = 'block';
+            document.getElementById('tags-result-card').style.display = 'none';
+
+        } catch (e) {
+            console.error(e);
+            alert('获取标签数据失败: ' + e.message + '\n请确认 MktService 服务 (3009) 正常运行。');
+        }
+    }
+    window.loadTagsView = loadTagsView;
+
+    async function calculateTagsRatio() {
+        if (!window._duckReady) return alert('DuckDB 未就绪');
+        
+        const checkedBoxes = Array.from(document.querySelectorAll('.tag-chk:checked'));
+        if (!checkedBoxes.length) return alert('请先选择至少一个标签');
+        
+        const selectedTags = checkedBoxes.map(cb => cb.value);
+        const dateStr = document.getElementById('tags-date-select').value;
+        if (!dateStr) return alert('请选择快照日期');
+
+        document.getElementById('tags-result-card').style.display = 'block';
+        
+        // 1. Fetch current snapshot data from DuckDB for the selected date
+        const sql = `SELECT * FROM snapshots WHERE snapshot_date='${dateStr.replace(/'/g, "''")}' AND ticker != 'TOTAL_ASSETS'`;
+        const res = await window._duckQuery(sql);
+        const rows = arrowToRows(res);
+
+        if (!rows.length) {
+            alert('当前日期无快照数据');
+            return;
+        }
+
+        let totalAssetsValue = 0;
+        let selectedTagsValue = 0;
+        
+        const matchedAssetSet = new Set();
+        const tagValueMap = {};
+        selectedTags.forEach(t => tagValueMap[t] = 0);
+
+        rows.forEach(r => {
+            const val = Number(r.totalValueTTMCNY) || 0;
+            totalAssetsValue += val;
+
+            // Find matching security tags from MktService data
+            const cleanTicker = r.ticker;
+            const secInfo = allSecuritiesData.find(s => s.ticker === cleanTicker);
+            let sTags = [];
+            if (secInfo && secInfo.tags) {
+                 sTags = typeof secInfo.tags === 'string' ? (secInfo.tags.startsWith('[') ? JSON.parse(secInfo.tags) : secInfo.tags.split(',')) : secInfo.tags;
+                 sTags = sTags.map(t => String(t).trim());
+            }
+            
+            // Check overlaps
+            const hits = selectedTags.filter(st => sTags.includes(st));
+            
+            if (hits.length > 0) {
+                matchedAssetSet.add(r.ticker);
+                selectedTagsValue += val; 
+                hits.forEach(hit => {
+                    tagValueMap[hit] += val; // for per-tag bar chart
+                });
+            }
+        });
+
+        // Update UI Text
+        document.getElementById('tags-total-val').innerText = '¥ ' + fmt(totalAssetsValue);
+        document.getElementById('tags-selected-val').innerText = '¥ ' + fmt(selectedTagsValue);
+        
+        const ratio = totalAssetsValue ? (selectedTagsValue / totalAssetsValue * 100) : 0;
+        document.getElementById('tags-ratio').innerText = fmt(ratio, 2) + '%';
+
+        // Render Chart.js
+        const ctx = document.getElementById('tag-chart').getContext('2d');
+        if (tagChart) {
+            tagChart.destroy();
+        }
+
+        const labels = selectedTags;
+        const dataVals = selectedTags.map(t => tagValueMap[t]);
+
+        tagChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '归属现值总计 (CNY)',
+                    data: dataVals,
+                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: '现值总额 (CNY)' }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += '¥ ' + context.parsed.y.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    window.calculateTagsRatio = calculateTagsRatio;
 </script>
 </body>
 </html>

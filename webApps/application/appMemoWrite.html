@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <style>
         body { font-family: 'Roboto Condensed', 'Inter', sans-serif !important; }
         body {
@@ -39,6 +41,30 @@
         .ProseMirror blockquote { border-left: 4px solid #e2e8f0; padding-left: 1rem; font-style: italic; color: #4a5568; margin: 1.5rem 0; }
         .ProseMirror code { background: #edf2f7; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-family: monospace; }
         .ProseMirror pre { background: #2d3748; color: #fff; padding: 1rem; border-radius: 0.5rem; margin: 1.5rem 0; overflow-x: auto; }
+        
+        /* Table Styles */
+        .ProseMirror table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 1.5rem 0; overflow: hidden; border-radius: 0.25rem; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); }
+        .ProseMirror td, .ProseMirror th { min-width: 1em; border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; vertical-align: top; box-sizing: border-box; position: relative; }
+        .ProseMirror th { font-weight: 600; text-align: left; background-color: #f8fafc; color: #475569; }
+        .ProseMirror .selectedCell:after { z-index: 2; position: absolute; content: ""; left: 0; right: 0; top: 0; bottom: 0; background: rgba(200, 200, 255, 0.4); pointer-events: none; }
+        .ProseMirror .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: -2px; width: 4px; background-color: #cbd5e1; pointer-events: none; cursor: col-resize; }
+        
+        /* Math Node Styles */
+        .Tiptap-mathematics-editor {
+            background: #f8f9ff;
+            border-radius: 4px;
+            padding: 0.1em 0.3em;
+            font-family: inherit;
+        }
+        .Tiptap-mathematics-render {
+            cursor: pointer;
+            padding: 0 0.2em;
+        }
+        .Tiptap-mathematics-render--block {
+            display: block;
+            text-align: center;
+            margin: 1em 0;
+        }
         
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -306,7 +332,13 @@
             "prosemirror-model": "https://esm.sh/prosemirror-model",
             "prosemirror-state": "https://esm.sh/prosemirror-state",
             "prosemirror-view": "https://esm.sh/prosemirror-view",
-            "tiptap-markdown": "https://esm.sh/tiptap-markdown"
+            "tiptap-markdown": "https://esm.sh/tiptap-markdown",
+            "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table",
+            "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row",
+            "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header",
+            "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell",
+            "@aarkue/tiptap-math-extension": "https://esm.sh/@aarkue/tiptap-math-extension",
+            "katex": "https://esm.sh/katex@0.16.8"
         }
     }
     </script>
@@ -316,6 +348,11 @@
         import StarterKit from '@tiptap/starter-kit';
         import Placeholder from '@tiptap/extension-placeholder';
         import { Markdown } from 'tiptap-markdown';
+        import { Table } from '@tiptap/extension-table';
+        import { TableRow } from '@tiptap/extension-table-row';
+        import { TableHeader } from '@tiptap/extension-table-header';
+        import { TableCell } from '@tiptap/extension-table-cell';
+        import { MathExtension } from '@aarkue/tiptap-math-extension';
 
         // --- App Configuration & State ---
         const API_BASE = 'http://localhost:3301/api'; // Point to BuboMemoMgr
@@ -344,6 +381,18 @@
             element: editorEl,
             extensions: [
                 StarterKit,
+                Table.configure({ resizable: true }),
+                TableRow,
+                TableHeader,
+                TableCell,
+                MathExtension.configure({ 
+                    evaluation: false,
+                    katexOptions: {
+                        macros: {
+                            "\\RR": "\\mathbb{R}"
+                        }
+                    }
+                }),
                 Placeholder.configure({
                     placeholder: 'Write something, or press "/" for commands...',
                 }),
