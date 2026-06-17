@@ -147,6 +147,52 @@ def execute_sql(req: SQLRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/api/bond_china")
+def get_bond_china():
+    try:
+        from datetime import datetime, timedelta
+        import akshare as ak
+        
+        # Try to find a recent date that has data (within last 10 days)
+        today = datetime.now()
+        for i in range(1, 11):
+            date_str = (today - timedelta(days=i)).strftime("%Y%m%d")
+            try:
+                df = ak.bond_china_close_return(symbol="国债", start_date=date_str, end_date=date_str)
+                if df is not None and not df.empty:
+                    # Filter 10Y and 30Y (support both float 10.0/30.0 and string '10年'/'30年')
+                    row_10y = df[(df['期限'] == 10.0) | (df['期限'] == '10年')]
+                    row_30y = df[(df['期限'] == 30.0) | (df['期限'] == '30年')]
+                    
+                    res = []
+                    if not row_10y.empty:
+                        item = row_10y.iloc[0]
+                        res.append({
+                            "name": "中国国债10年期 (CN 10Y)",
+                            "from": "10-00",
+                            "rate": float(item['到期收益率']),
+                            "record_date": str(item['日期']),
+                            "source": "中债国债到期收益率曲线 (akshare)"
+                        })
+                    if not row_30y.empty:
+                        item = row_30y.iloc[0]
+                        res.append({
+                            "name": "中国国债30年期 (CN 30Y)",
+                            "from": "30-00",
+                            "rate": float(item['到期收益率']),
+                            "record_date": str(item['日期']),
+                            "source": "中债国债到期收益率曲线 (akshare)"
+                        })
+                    if res:
+                        return res
+            except Exception as e:
+                logger.error(f"Error fetching CN bond yields for {date_str}: {e}")
+                
+        raise HTTPException(status_code=500, detail="Failed to fetch Chinese treasury yields from akshare")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # --- Parquet export for DuckDB-Wasm (binary fetch) ---
 
 @app.get("/api/data/snapshots.parquet")

@@ -82,6 +82,16 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
                 description TEXT,
                 updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )`);
+
+            // AccountBalances Table
+            db.run(`CREATE TABLE IF NOT EXISTS AccountBalances (
+                accountID TEXT,
+                currency TEXT,
+                cash REAL DEFAULT 0,
+                liability REAL DEFAULT 0,
+                updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (accountID, currency)
+            )`);
         });
     }
 });
@@ -121,6 +131,245 @@ app.delete('/api/other-assets/:id', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Other Asset deleted', changes: this.changes });
     });
+});
+
+// Helper to adjust cash balance
+function adjustCashBalance(accountID, currency, change, callback) {
+    db.get('SELECT * FROM AccountBalances WHERE accountID = ? AND currency = ?', [accountID, currency], (err, row) => {
+        if (err) return callback(err);
+        if (row) {
+            const newCash = row.cash + change;
+            db.run('UPDATE AccountBalances SET cash = ?, updatedAt = CURRENT_TIMESTAMP WHERE accountID = ? AND currency = ?',
+                [newCash, accountID, currency], callback);
+        } else {
+            db.run('INSERT INTO AccountBalances (accountID, currency, cash, liability, updatedAt) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)',
+                [accountID, currency, change], callback);
+        }
+    });
+}
+
+// --- API Endpoints for AccountBalances ---
+
+// List all account balances
+app.get('/api/account-balances', (req, res) => {
+    db.all('SELECT * FROM AccountBalances', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Create or update account balance (cash/liability)
+app.post('/api/account-balances', (req, res) => {
+    const { accountID, currency, cash, liability } = req.body;
+    if (!accountID || !currency) {
+        return res.status(400).json({ error: 'accountID and currency are required' });
+    }
+    const sql = `INSERT INTO AccountBalances (accountID, currency, cash, liability, updatedAt) 
+                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) 
+                 ON CONFLICT(accountID, currency) 
+                 DO UPDATE SET cash=excluded.cash, liability=excluded.liability, updatedAt=CURRENT_TIMESTAMP`;
+    db.run(sql, [accountID, currency, cash || 0, liability || 0], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Account balance updated' });
+    });
+});
+
+// Delete account balance record
+app.delete('/api/account-balances/:accountID/:currency', (req, res) => {
+    const { accountID, currency } = req.params;
+    db.run('DELETE FROM AccountBalances WHERE accountID = ? AND currency = ?', [accountID, currency], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Account balance deleted', changes: this.changes });
+    });
+});
+
+// --- API Endpoint for Balance Sheet Calculation ---
+app.get('/api/balance-sheet', async (req, res) => {
+    try {
+        const MKT_API = 'http://localhost:3009/api';
+
+        // 1. Fetch assets and balances
+        const assets = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM Assets', [], (err, rows) => {
+                if (err) reject(err); else resolve(rows);
+            });
+        });
+
+        const balances = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM AccountBalances', [], (err, rows) => {
+                if (err) reject(err); else resolve(rows);
+            });
+        });
+
+        // 2. Fetch market quotes from MktService
+        let tickerQuoteMap = {};
+        try {
+            const mktRes = await fetch(`${MKT_API}/market`);
+            if (mktRes.ok) {
+                const mktData = await mktRes.json();
+                mktData.forEach(item => {
+                    tickerQuoteMap[item.ticker] = item.QuoteTTM;
+                });
+            }
+        } catch (e) {
+            console.error('[BalanceSheet] Failed to fetch market quotes:', e.message);
+        }
+
+        // 3. Gather unique currencies and fetch rates to CNY
+        const uniqueCurrencies = new Set();
+        assets.forEach(a => { if (a.currency) uniqueCurrencies.add(a.currency.toUpperCase()); });
+        balances.forEach(b => { if (b.currency) uniqueCurrencies.add(b.currency.toUpperCase()); });
+        
+        const exRates = { 'CNY': 1 };
+        for (const cur of uniqueCurrencies) {
+            if (cur !== 'CNY') {
+                try {
+                    const exRes = await fetch(`${MKT_API}/exrate/${cur}/CNY`);
+                    if (exRes.ok) {
+                        const exData = await exRes.json();
+                        exRates[cur] = exData.rate || 1;
+                    } else {
+                        exRates[cur] = 1;
+                    }
+                } catch (e) {
+                    console.error(`[BalanceSheet] Failed to fetch exrate for ${cur}:`, e.message);
+                    exRates[cur] = 1;
+                }
+            }
+        }
+
+        // 4. Compile balances and assets by accountID
+        const accounts = {};
+
+        const getAccount = (id) => {
+            if (!accounts[id]) {
+                accounts[id] = {
+                    accountID: id,
+                    cash: [],
+                    securities: [],
+                    liabilities: [],
+                    totals: {
+                        cashInCNY: 0,
+                        securitiesCostInCNY: 0,
+                        securitiesValueInCNY: 0,
+                        assetsInCNY: 0,
+                        liabilitiesInCNY: 0,
+                        netAssetsInCNY: 0,
+                        profitLossCNY: 0,
+                        profitLossPercent: 0
+                    }
+                };
+            }
+            return accounts[id];
+        };
+
+        // Populate cash and liabilities
+        balances.forEach(b => {
+            const acc = getAccount(b.accountID);
+            const cur = b.currency.toUpperCase();
+            const exRate = exRates[cur] || 1;
+
+            if (b.cash !== 0) {
+                const cashInCNY = b.cash * exRate;
+                acc.cash.push({
+                    currency: cur,
+                    amount: b.cash,
+                    amountInCNY: cashInCNY,
+                    exchangeRate: exRate
+                });
+                acc.totals.cashInCNY += cashInCNY;
+            }
+
+            if (b.liability !== 0) {
+                const liabilityInCNY = b.liability * exRate;
+                acc.liabilities.push({
+                    currency: cur,
+                    amount: b.liability,
+                    amountInCNY: liabilityInCNY,
+                    exchangeRate: exRate
+                });
+                acc.totals.liabilitiesInCNY += liabilityInCNY;
+            }
+        });
+
+        // Populate securities
+        assets.forEach(a => {
+            if (a.shares === 0) return;
+            const acc = getAccount(a.accountID);
+            const cur = a.currency.toUpperCase();
+            const exRate = exRates[cur] || 1;
+
+            const costInCNY = a.shares * a.costPerShare * exRate;
+            const marketPrice = tickerQuoteMap[a.ticker] !== undefined ? tickerQuoteMap[a.ticker] : a.costPerShare;
+            const marketValue = a.shares * marketPrice;
+            const marketValueInCNY = marketValue * exRate;
+
+            acc.securities.push({
+                ticker: a.ticker,
+                assetType: a.assetType || '股票',
+                currency: cur,
+                shares: a.shares,
+                costPerShare: a.costPerShare,
+                totalCost: a.shares * a.costPerShare,
+                totalCostInCNY: costInCNY,
+                marketPrice,
+                marketValue,
+                marketValueInCNY,
+                exchangeRate: exRate,
+                profitLossCNY: marketValueInCNY - costInCNY,
+                profitLossPercent: a.costPerShare > 0 ? ((marketPrice / a.costPerShare) - 1) * 100 : 0
+            });
+
+            acc.totals.securitiesCostInCNY += costInCNY;
+            acc.totals.securitiesValueInCNY += marketValueInCNY;
+        });
+
+        // Calculate totals for each account
+        for (const id in accounts) {
+            const acc = accounts[id];
+            acc.totals.assetsInCNY = acc.totals.cashInCNY + acc.totals.securitiesValueInCNY;
+            acc.totals.netAssetsInCNY = acc.totals.assetsInCNY - acc.totals.liabilitiesInCNY;
+            acc.totals.profitLossCNY = acc.totals.securitiesValueInCNY - acc.totals.securitiesCostInCNY;
+            acc.totals.profitLossPercent = acc.totals.securitiesCostInCNY > 0 
+                ? (acc.totals.securitiesValueInCNY / acc.totals.securitiesCostInCNY - 1) * 100 
+                : 0;
+        }
+
+        // Consolidated totals
+        const consolidated = {
+            totalCashInCNY: 0,
+            totalSecuritiesCostInCNY: 0,
+            totalSecuritiesValueInCNY: 0,
+            totalAssetsInCNY: 0,
+            totalLiabilitiesInCNY: 0,
+            netAssetsInCNY: 0,
+            totalProfitLossCNY: 0,
+            totalProfitLossPercent: 0
+        };
+
+        const accountList = Object.values(accounts);
+        accountList.forEach(acc => {
+            consolidated.totalCashInCNY += acc.totals.cashInCNY;
+            consolidated.totalSecuritiesCostInCNY += acc.totals.securitiesCostInCNY;
+            consolidated.totalSecuritiesValueInCNY += acc.totals.securitiesValueInCNY;
+            consolidated.totalAssetsInCNY += acc.totals.assetsInCNY;
+            consolidated.totalLiabilitiesInCNY += acc.totals.liabilitiesInCNY;
+            consolidated.netAssetsInCNY += acc.totals.netAssetsInCNY;
+        });
+
+        consolidated.totalProfitLossCNY = consolidated.totalSecuritiesValueInCNY - consolidated.totalSecuritiesCostInCNY;
+        consolidated.totalProfitLossPercent = consolidated.totalSecuritiesCostInCNY > 0 
+            ? (consolidated.totalSecuritiesValueInCNY / consolidated.totalSecuritiesCostInCNY - 1) * 100 
+            : 0;
+
+        res.json({
+            accounts: accountList,
+            consolidated
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // --- API Endpoints for Assets ---
@@ -200,6 +449,7 @@ app.post('/api/deals/:id/submit', (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
 
             if (deal.action === 'buy') {
+                const cashChange = - (deal.shares * deal.price);
                 if (asset) {
                     // Weighted average cost formula
                     const newShares = asset.shares + deal.shares;
@@ -209,8 +459,11 @@ app.post('/api/deals/:id/submit', (req, res) => {
                         [newShares, newCost, deal.ticker, deal.accountID],
                         (err) => {
                             if (err) return res.status(500).json({ error: err.message });
-                            db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
-                            res.json({ message: 'Deal submitted and added to existing asset' });
+                            adjustCashBalance(deal.accountID, deal.currency, cashChange, (err) => {
+                                if (err) console.error('[DealSubmit] Failed to adjust cash:', err.message);
+                                db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
+                                res.json({ message: 'Deal submitted and added to existing asset' });
+                            });
                         });
                 } else {
                     // Insert new asset
@@ -218,11 +471,15 @@ app.post('/api/deals/:id/submit', (req, res) => {
                         [deal.ticker, deal.accountID, deal.currency, deal.shares, deal.price, '股票'],
                         (err) => {
                             if (err) return res.status(500).json({ error: err.message });
-                            db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
-                            res.json({ message: 'Deal submitted and new asset created' });
+                            adjustCashBalance(deal.accountID, deal.currency, cashChange, (err) => {
+                                if (err) console.error('[DealSubmit] Failed to adjust cash:', err.message);
+                                db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
+                                res.json({ message: 'Deal submitted and new asset created' });
+                            });
                         });
                 }
             } else if (deal.action === 'sell') {
+                const cashChange = deal.shares * deal.price;
                 if (!asset || asset.shares < deal.shares) {
                     // Reject: Suspicious transaction
                     db.run("UPDATE DealHistory SET status = '可疑' WHERE transactionID = ?", [id], (err) => {
@@ -236,8 +493,11 @@ app.post('/api/deals/:id/submit', (req, res) => {
                         [newShares, deal.ticker, deal.accountID], 
                         (err) => {
                             if (err) return res.status(500).json({ error: err.message });
-                            db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
-                            res.json({ message: 'Deal submitted and shares deducted' });
+                            adjustCashBalance(deal.accountID, deal.currency, cashChange, (err) => {
+                                if (err) console.error('[DealSubmit] Failed to adjust cash:', err.message);
+                                db.run("UPDATE DealHistory SET status = '已提交' WHERE transactionID = ?", [id]);
+                                res.json({ message: 'Deal submitted and shares deducted' });
+                            });
                         });
                 }
             }
@@ -292,14 +552,16 @@ app.post('/api/portfolio/aggregate', (req, res) => {
                 });
             });
 
+            // Step 2.5: Pre-fetch market data to avoid sequential fetches in loop
+            let mktRes = await fetch(`${MKT_API}/market`);
+            let mktData = await mktRes.json();
+            const exRateCache = { 'CNY': 1 };
+
             // Step 3: Enrich each ticker with Market Data and Exchange Rates
             const updates = [];
             for (const item of rows) {
                 try {
-                    // Get Quote (Check MktService)
-                    let mktRes = await fetch(`${MKT_API}/market`);
-                    let mktData = await mktRes.json();
-                    let tickerInfo = mktData.find(m => m.ticker === item.ticker);
+                    let tickerInfo = Array.isArray(mktData) ? mktData.find(m => m.ticker === item.ticker) : null;
 
                     // If ticker not found, fetch it on demand
                     if (!tickerInfo) {
@@ -308,7 +570,7 @@ app.post('/api/portfolio/aggregate', (req, res) => {
                         if (fetchReq.ok) {
                             mktRes = await fetch(`${MKT_API}/market`);
                             mktData = await mktRes.json();
-                            tickerInfo = mktData.find(m => m.ticker === item.ticker);
+                            tickerInfo = Array.isArray(mktData) ? mktData.find(m => m.ticker === item.ticker) : null;
                         }
                     }
 
@@ -316,10 +578,18 @@ app.post('/api/portfolio/aggregate', (req, res) => {
 
                     // Get Exchange Rate to CNY
                     let exRate = 1;
-                    if (item.currency !== 'CNY') {
-                        const exRes = await fetch(`${MKT_API}/exrate/${item.currency}/CNY`);
-                        const exData = await exRes.json();
-                        exRate = exData.rate || 1;
+                    if (item.currency && item.currency !== 'CNY') {
+                        if (!exRateCache[item.currency]) {
+                            try {
+                                const exRes = await fetch(`${MKT_API}/exrate/${item.currency}/CNY`);
+                                const exData = await exRes.json();
+                                exRateCache[item.currency] = exData.rate || 1;
+                            } catch (e) {
+                                console.error(`[Sync] Failed to fetch exrate for ${item.currency}:`, e.message);
+                                exRateCache[item.currency] = 1;
+                            }
+                        }
+                        exRate = exRateCache[item.currency];
                     }
 
                     // Calculations
@@ -349,11 +619,14 @@ app.post('/api/portfolio/aggregate', (req, res) => {
                             SET totalCostInCNY = ?, exchangeRate = ?, quoteTTM = ?, earningInPercent = ?
                             WHERE ticker = ?
                         `);
+                        let stmtError = null;
                         updates.forEach(u => {
-                            stmt.run([u.totalCostInCNY, u.exchangeRate, u.quoteTTM, u.earningInPercent, u.ticker]);
+                            stmt.run([u.totalCostInCNY, u.exchangeRate, u.quoteTTM, u.earningInPercent, u.ticker], (err) => {
+                                if (err) stmtError = err;
+                            });
                         });
                         stmt.finalize((err) => {
-                            if (err) reject(err);
+                            if (err || stmtError) reject(err || stmtError);
                             else resolve();
                         });
                     });
@@ -398,11 +671,14 @@ app.post('/api/portfolio/update', (req, res) => {
             SET totalCostInCNY = ?, exchangeRate = ?, quoteTTM = ?, earningInPercent = ?
             WHERE ticker = ?
         `);
+        let stmtError = null;
         updates.forEach(u => {
-            stmt.run([u.totalCostInCNY, u.exchangeRate, u.quoteTTM, u.earningInPercent, u.ticker]);
+            stmt.run([u.totalCostInCNY, u.exchangeRate, u.quoteTTM, u.earningInPercent, u.ticker], (err) => {
+                if (err) stmtError = err;
+            });
         });
         stmt.finalize((err) => {
-            if (err) return res.status(500).json({ error: err.message });
+            if (err || stmtError) return res.status(500).json({ error: (err || stmtError).message });
             res.json({ message: 'Portfolio updated' });
         });
     });

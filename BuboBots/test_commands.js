@@ -25,9 +25,25 @@ async function runTests() {
     const helpRes = await commands.handleCommand('/help');
     console.log(helpRes);
 
-    console.log("\n=== Testing Invalid Command ===");
-    const invalidRes = await commands.handleCommand('/unknownXYZ');
-    console.log(invalidRes);
+    console.log("\n=== Testing /buy (Invalid syntax) ===");
+    const buyInv1 = await commands.handleCommand('/buy 0700.HK 100 at HKD');
+    console.log(buyInv1);
+
+    console.log("\n=== Testing /buy (Invalid amount) ===");
+    const buyInv2 = await commands.handleCommand('/buy 0700.HK abc at HKD 450.00 using ZSZQ');
+    console.log(buyInv2);
+
+    console.log("\n=== Testing /sell (Invalid syntax) ===");
+    const sellInv = await commands.handleCommand('/sell 0700.HK 100 at HKD');
+    console.log(sellInv);
+
+    console.log("\n=== Testing /sell (Valid syntax) ===");
+    const sellVal = await commands.handleCommand('/sell 0700.HK 50 at HKD 460.00 using ZSZQ');
+    console.log(sellVal);
+
+    console.log("\n=== Testing /manual ===");
+    const manualVal = await commands.handleCommand('/manual');
+    console.log(manualVal);
     
     process.exit(0);
 }

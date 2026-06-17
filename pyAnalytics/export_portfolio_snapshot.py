@@ -66,13 +66,31 @@ def main():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             snapshot_date TEXT,
             accountID TEXT,
+            account_type TEXT,
             totalCostCNY REAL,
             totalValueTTMCNY REAL,
             profitPercent REAL,
+            cashCNY REAL DEFAULT 0,
+            securitiesValueCNY REAL DEFAULT 0,
+            securitiesCostCNY REAL DEFAULT 0,
+            liabilitiesCNY REAL DEFAULT 0,
+            netAssetsCNY REAL DEFAULT 0,
+            details TEXT,
             lastAggregated TEXT,
             UNIQUE(snapshot_date, accountID)
         )
     ''')
+
+    # Ensure columns exist dynamically
+    cursor.execute("PRAGMA table_info(account_snapshots)")
+    cols = [r[1] for r in cursor.fetchall()]
+    for col_name in ['cashCNY', 'securitiesValueCNY', 'securitiesCostCNY', 'liabilitiesCNY', 'netAssetsCNY']:
+        if col_name not in cols:
+            cursor.execute(f"ALTER TABLE account_snapshots ADD COLUMN {col_name} REAL DEFAULT 0")
+    if 'details' not in cols:
+        cursor.execute("ALTER TABLE account_snapshots ADD COLUMN details TEXT")
+    if 'account_type' not in cols:
+        cursor.execute("ALTER TABLE account_snapshots ADD COLUMN account_type TEXT")
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS company_financials (
@@ -139,43 +157,59 @@ def main():
         except Exception as e:
             print(f"Failed to record {ticker}: {e}")
 
-    # Prepare data for account aggregation
-    ticker_market_info = {}
-    for item in portfolio_data:
-        ticker_market_info[item['ticker']] = {
-            'quoteTTM': item.get('quoteTTM', 0),
-            'exRate': item.get('exchangeRate', 1.0)
-        }
-
+    # Prepare data for account aggregation using Balance Sheet endpoint
     account_totals = {}
-    
-    print(f"Fetching account assets from {ACCOUNTING_SERVICE_API}/assets...")
+    total_cash = []
+    total_securities = []
+    total_liabilities = []
+
+    print(f"Fetching balance sheet from {ACCOUNTING_SERVICE_API}/balance-sheet...")
+    balance_sheet_accounts = []
     try:
-        resp = requests.get(f"{ACCOUNTING_SERVICE_API}/assets")
+        resp = requests.get(f"{ACCOUNTING_SERVICE_API}/balance-sheet")
         resp.raise_for_status()
-        assets_data = resp.json()
-        
-        for ast in assets_data:
-            acc = ast.get('accountID', 'Unknown')
-            t = ast.get('ticker')
-            s = ast.get('shares', 0)
-            cps = ast.get('costPerShare', 0)
-            
-            info = ticker_market_info.get(t, {'quoteTTM': 0, 'exRate': 1.0})
-            rate = info['exRate']
-            quote = info['quoteTTM']
-            
-            cost_cny = s * cps * rate
-            val_cny = s * quote * rate
-            
-            if acc not in account_totals:
-                account_totals[acc] = {'cost': 0.0, 'value': 0.0}
-            
-            account_totals[acc]['cost'] += cost_cny
-            account_totals[acc]['value'] += val_cny
-            
+        bs_data = resp.json()
+        balance_sheet_accounts = bs_data.get('accounts', [])
     except Exception as e:
-        print(f"Warning: Failed to process assets: {e}")
+        print(f"Warning: Failed to fetch balance sheet: {e}")
+
+    for acc in balance_sheet_accounts:
+        acc_id = acc['accountID']
+        totals = acc['totals']
+        
+        cash_cny = totals.get('cashInCNY', 0.0)
+        sec_val_cny = totals.get('securitiesValueInCNY', 0.0)
+        sec_cost_cny = totals.get('securitiesCostInCNY', 0.0)
+        liab_cny = totals.get('liabilitiesInCNY', 0.0)
+        net_cny = totals.get('netAssetsInCNY', 0.0)
+        profit_pct = totals.get('profitLossPercent', 0.0)
+
+        # Collect consolidated lists
+        total_cash.extend(acc.get('cash', []))
+        total_securities.extend(acc.get('securities', []))
+        total_liabilities.extend(acc.get('liabilities', []))
+
+        # Store detailed list as JSON
+        details_data = {
+            'cash': acc.get('cash', []),
+            'securities': acc.get('securities', []),
+            'liabilities': acc.get('liabilities', [])
+        }
+        details_json = json.dumps(details_data)
+
+        # For backward compatibility, totalValueTTMCNY acts as total assets, and totalCostCNY acts as cost + cash
+        account_totals[acc_id] = {
+            'account_type': 'securities',
+            'cashCNY': cash_cny,
+            'securitiesValueCNY': sec_val_cny,
+            'securitiesCostCNY': sec_cost_cny,
+            'liabilitiesCNY': liab_cny,
+            'netAssetsCNY': net_cny,
+            'cost': sec_cost_cny + cash_cny,
+            'value': sec_val_cny + cash_cny,
+            'profitPercent': profit_pct,
+            'details': details_json
+        }
 
     # 5. Fetch Other Assets and calculate Total Assets
     total_other_assets_cny = 0.0
@@ -187,6 +221,7 @@ def main():
             for item in other_data:
                 currency = item.get('currency', 'CNY')
                 amount = item.get('amount', 0)
+                category = item.get('assetCategory', '其他')
                 ex_rate = 1.0
                 if currency != 'CNY':
                     try:
@@ -201,13 +236,60 @@ def main():
                 
                 # Treat each other asset as a unique account using Name_ID
                 other_acc_id = f"{item.get('assetName', 'OtherAsset')}_{item.get('id', '0')}"
-                account_totals[other_acc_id] = {'cost': val_cny, 'value': val_cny}
+                is_cash = (category == '现金')
+
+                # Structure details for other assets
+                other_details = {
+                    'cash': [],
+                    'securities': [],
+                    'liabilities': []
+                }
+                if is_cash:
+                    c_item = {
+                        'currency': currency,
+                        'amount': amount,
+                        'amountInCNY': val_cny,
+                        'exchangeRate': ex_rate
+                    }
+                    other_details['cash'].append(c_item)
+                    total_cash.append(c_item)
+                else:
+                    s_item = {
+                        'ticker': item.get('assetName', 'OtherAsset'),
+                        'assetType': category,
+                        'currency': currency,
+                        'shares': 1.0,
+                        'costPerShare': amount,
+                        'totalCost': amount,
+                        'totalCostInCNY': val_cny,
+                        'marketPrice': amount,
+                        'marketValue': amount,
+                        'marketValueInCNY': val_cny,
+                        'exchangeRate': ex_rate,
+                        'profitLossCNY': 0.0,
+                        'profitLossPercent': 0.0
+                    }
+                    other_details['securities'].append(s_item)
+                    total_securities.append(s_item)
+
+                account_totals[other_acc_id] = {
+                    'account_type': 'other',
+                    'cashCNY': val_cny if is_cash else 0.0,
+                    'securitiesValueCNY': 0.0 if is_cash else val_cny,
+                    'securitiesCostCNY': 0.0 if is_cash else val_cny,
+                    'liabilitiesCNY': 0.0,
+                    'netAssetsCNY': val_cny,
+                    'cost': val_cny,
+                    'value': val_cny,
+                    'profitPercent': 0.0,
+                    'details': json.dumps(other_details)
+                }
     except Exception as e:
         print(f"Error fetching other assets: {e}")
 
     total_assets_cny = total_holdings_cny + total_other_assets_cny
     
-    # Insert TOTAL_ASSETS row
+    # Insert TOTAL_ASSETS row in snapshots
     record_total = (
         today,
         'TOTAL_ASSETS',
@@ -235,33 +317,54 @@ def main():
 
     # Insert account snapshots
     for acc_id, stats in account_totals.items():
-        cost = stats['cost']
-        val = stats['value']
-        profit_pct = ((val / cost - 1) * 100) if cost > 0 else 0.0
-        
         try:
             cursor.execute('''
                 INSERT OR REPLACE INTO account_snapshots (
-                    snapshot_date, accountID, totalCostCNY, totalValueTTMCNY, 
-                    profitPercent, lastAggregated
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            ''', (today, acc_id, cost, val, profit_pct, datetime.now().isoformat()))
+                    snapshot_date, accountID, account_type, totalCostCNY, totalValueTTMCNY, 
+                    profitPercent, cashCNY, securitiesValueCNY, securitiesCostCNY, 
+                    liabilitiesCNY, netAssetsCNY, details, lastAggregated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                today, acc_id, stats.get('account_type', 'securities'), stats['cost'], stats['value'], stats['profitPercent'],
+                stats['cashCNY'], stats['securitiesValueCNY'], stats['securitiesCostCNY'],
+                stats['liabilitiesCNY'], stats['netAssetsCNY'], stats.get('details', '{}'), datetime.now().isoformat()
+            ))
             inserted_count += 1
         except Exception as e:
             print(f"Failed to record account {acc_id}: {e}")
 
     # Insert TOTAL_ASSETS for accounts
-    total_cost_acc = sum(stats['cost'] for stats in account_totals.values())
-    total_val_acc = sum(stats['value'] for stats in account_totals.values())
-    total_acc_profit_pct = ((total_val_acc / total_cost_acc - 1) * 100) if total_cost_acc > 0 else 0.0
+    total_cost_acc = sum(s['cost'] for s in account_totals.values())
+    total_val_acc = sum(s['value'] for s in account_totals.values())
     
-    cursor.execute('''
-        INSERT OR REPLACE INTO account_snapshots (
-            snapshot_date, accountID, totalCostCNY, totalValueTTMCNY, 
-            profitPercent, lastAggregated
-        ) VALUES (?, ?, ?, ?, ?, ?)
-    ''', (today, 'TOTAL_ASSETS', total_cost_acc, total_val_acc, total_acc_profit_pct, datetime.now().isoformat()))
-    inserted_count += 1
+    total_cash_acc = sum(s['cashCNY'] for s in account_totals.values())
+    total_sec_val_acc = sum(s['securitiesValueCNY'] for s in account_totals.values())
+    total_sec_cost_acc = sum(s['securitiesCostCNY'] for s in account_totals.values())
+    total_liab_acc = sum(s['liabilitiesCNY'] for s in account_totals.values())
+    total_net_acc = sum(s['netAssetsCNY'] for s in account_totals.values())
+    total_acc_profit_pct = ((total_sec_val_acc / total_sec_cost_acc - 1) * 100) if total_sec_cost_acc > 0 else 0.0
+    
+    total_details_json = json.dumps({
+        'cash': total_cash,
+        'securities': total_securities,
+        'liabilities': total_liabilities
+    })
+
+    try:
+        cursor.execute('''
+            INSERT OR REPLACE INTO account_snapshots (
+                snapshot_date, accountID, account_type, totalCostCNY, totalValueTTMCNY, 
+                profitPercent, cashCNY, securitiesValueCNY, securitiesCostCNY, 
+                liabilitiesCNY, netAssetsCNY, details, lastAggregated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            today, 'TOTAL_ASSETS', 'total', total_cost_acc, total_val_acc, total_acc_profit_pct,
+            total_cash_acc, total_sec_val_acc, total_sec_cost_acc,
+            total_liab_acc, total_net_acc, total_details_json, datetime.now().isoformat()
+        ))
+        inserted_count += 1
+    except Exception as e:
+        print(f"Failed to record TOTAL_ASSETS account: {e}")
 
     conn.commit()
     conn.close()

@@ -197,4 +197,7 @@ These commands can be typed directly into the respective chat interfaces (Google
 | \`/echo [message]\` | Simple ping test to verify the bot is responding | \`/echo Hello world\` |
 | \`/alert <ticker> <quote1> <quote2>\` | Starts tracking a ticker and sets Min/Max threshold alerts. Supports absolute values & relative percentages. | **Absolute**: \`/alert AAPL 250 260\`<br>**Relative**: \`/alert BN -10% +5%\` |
 | \`/alerts\` | Displays a list of all currently tracked tickers and their thresholds. | \`/alerts\` |
+| \`/buy <ticker> <amount> at <currency> <price> using <account>\` | Registers a buy transaction in the specified account at the given price and currency. | \`/buy 0700.HK 100 at HKD 450.00 using ZSZQ\` |
+| \`/sell <ticker> <amount> at <currency> <price> using <account>\` | Registers a sell transaction in the specified account at the given price and currency. | \`/sell 0700.HK 50 at HKD 460.00 using ZSZQ\` |
+| \`/manual\` | Displays the required parameter format/template for each interactive command. | \`/manual\` |
 | \`/help\` | Prints a list of system capabilities and available commands. | \`/help\` |

@@ -48,3 +48,17 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Firebase & Google Service Accounts JSON keys
+*-firebase-adminsdk-*.json
+service-account.json
+
+# App runtime caches & temp files
+cache/
+/BuboMemoMgr/cache/

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>ZenReader</title>
+    <style>
+        body { 
+            width: 220px; 
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif; 
+            padding: 15px; 
+            margin: 0;
+            text-align: center; 
+        }
+        button { 
+            display: block; 
+            width: 100%; 
+            margin: 10px 0; 
+            padding: 12px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        #btn-zen { 
+            background: #8c1616; 
+            color: white; 
+            font-weight: bold;
+        }
+        #btn-report { 
+            background: #f0f0f0; 
+            color: #3c3c43; 
+        }
+    </style>
+</head>
+<body>
+    <button id="btn-zen">进入阅读模式</button>
+    <button id="btn-report">报告此页面排版错误</button>
+    <button id="btn-options" style="background: transparent; color: #888; border: 1px solid #ccc; margin-top: 10px;">设置自定义规则</button>
+    <script src="popup.js"></script>
+</body>
+</html>

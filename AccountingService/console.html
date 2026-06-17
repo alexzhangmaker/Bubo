@@ -182,6 +182,7 @@
             <button class="tab-btn" onclick="switchTab('deals')">交易历史 (Deal History)</button>
             <button class="tab-btn" onclick="switchTab('portfolio')">投资组合汇总 (Portfolio)</button>
             <button class="tab-btn" onclick="switchTab('other')">其他资产 (Other Assets)</button>
+            <button class="tab-btn" onclick="switchTab('balancesheet')">资产负债表 (Balance Sheet)</button>
         </div>
 
         <!-- Assets Section -->
@@ -439,6 +440,70 @@
                 </div>
             </div>
         </div>
+
+        <!-- Balance Sheet Section -->
+        <div id="balancesheet-section" class="hidden">
+            <!-- Cash & Margin Manager Form -->
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">录入/调整现金与负债</h2>
+                </div>
+                <form id="cash-margin-form" onsubmit="saveAccountBalance(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>账户 ID (Account ID)</label>
+                            <input type="text" id="cb-accountID" required placeholder="如: Broker-01">
+                        </div>
+                        <div class="form-group">
+                            <label>币种 (Currency)</label>
+                            <input type="text" id="cb-currency" required placeholder="如: USD, HKD, CNY">
+                        </div>
+                        <div class="form-group">
+                            <label>现金金额 (Cash Balance)</label>
+                            <input type="number" step="0.01" id="cb-cash" required placeholder="可为正数或负数">
+                        </div>
+                        <div class="form-group">
+                            <label>负债金额 (Margin Debt)</label>
+                            <input type="number" step="0.01" id="cb-liability" required placeholder="融券/融资欠款，通常为正数">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存账户余额</button>
+                </form>
+            </div>
+
+            <!-- Consolidated Balance Sheet Card -->
+            <div class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white; border: none;">
+                <div class="section-header">
+                    <h2 class="section-title" style="color: #f8fafc;">合并资产负债表 (Consolidated Balance Sheet)</h2>
+                    <div style="font-size: 0.8rem; color: #94a3b8;">本币单位: 人民币 (CNY)</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+                    <div style="background: rgba(255,255,255,0.05); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.875rem; color: #94a3b8;">总现金资产 (Total Cash)</div>
+                        <div id="bs-total-cash" style="font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; color: #38bdf8;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.875rem; color: #94a3b8;">总证券市值 (Securities Market Value)</div>
+                        <div id="bs-total-securities" style="font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; color: #a78bfa;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.875rem; color: #94a3b8;">总资产 (Total Assets)</div>
+                        <div id="bs-total-assets" style="font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; color: #34d399;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.875rem; color: #94a3b8;">总负债 (Total Liabilities)</div>
+                        <div id="bs-total-liabilities" style="font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; color: #f87171;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1); grid-column: span 1;">
+                        <div style="font-size: 0.875rem; color: #94a3b8;">净资产/所有者权益 (Net Assets / Equity)</div>
+                        <div id="bs-net-assets" style="font-size: 1.75rem; font-weight: 800; margin-top: 0.25rem; color: #fbbf24;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account list balance sheets -->
+            <div id="accounts-bs-container"></div>
+        </div>
     </div>
 
     <script>
@@ -452,6 +517,7 @@
             document.getElementById('deals-section').classList.add('hidden');
             document.getElementById('portfolio-section').classList.add('hidden');
             document.getElementById('other-assets-section').classList.add('hidden');
+            document.getElementById('balancesheet-section').classList.add('hidden');
 
             if (tab === 'assets') {
                 document.getElementById('assets-section').classList.remove('hidden');
@@ -465,6 +531,9 @@
             } else if (tab === 'other') {
                 document.getElementById('other-assets-section').classList.remove('hidden');
                 loadOtherAssets();
+            } else if (tab === 'balancesheet') {
+                document.getElementById('balancesheet-section').classList.remove('hidden');
+                loadBalanceSheet();
             }
         }
 
@@ -874,6 +943,222 @@
                 const data = await res.json();
                 downloadCSV(data, 'OtherAssets_' + new Date().toISOString().split('T')[0] + '.csv');
             } catch (err) { console.error(err); }
+        }
+
+        async function loadBalanceSheet() {
+            try {
+                const res = await fetch(`${API_BASE}/balance-sheet`);
+                const data = await res.json();
+                renderBalanceSheet(data);
+            } catch (err) {
+                console.error('Failed to load balance sheet', err);
+            }
+        }
+
+        function renderBalanceSheet(data) {
+            const con = data.consolidated;
+            document.getElementById('bs-total-cash').innerText = 'CNY ' + formatAmount(con.totalCashInCNY);
+            document.getElementById('bs-total-securities').innerText = 'CNY ' + formatAmount(con.totalSecuritiesValueInCNY);
+            document.getElementById('bs-total-assets').innerText = 'CNY ' + formatAmount(con.totalAssetsInCNY);
+            document.getElementById('bs-total-liabilities').innerText = 'CNY ' + formatAmount(con.totalLiabilitiesInCNY);
+            document.getElementById('bs-net-assets').innerText = 'CNY ' + formatAmount(con.netAssetsInCNY);
+
+            const container = document.getElementById('accounts-bs-container');
+            if (!data.accounts || data.accounts.length === 0) {
+                container.innerHTML = '<div class="card" style="margin-top: 1.5rem;"><p style="text-align:center;color:var(--text-muted)">暂无账户余额数据，请在上方录入现金余额以开始。</p></div>';
+                return;
+            }
+
+            container.innerHTML = data.accounts.map(acc => {
+                const profitColor = acc.totals.profitLossCNY >= 0 ? 'var(--success)' : 'var(--danger)';
+                const profitSign = acc.totals.profitLossCNY >= 0 ? '+' : '';
+                return `
+                    <div class="card" style="margin-top: 1.5rem;">
+                        <div class="section-header" style="border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                            <h3 class="section-title" style="font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="background: var(--primary); color: white; width: 28px; height: 28px; display: inline-flex; justify-content: center; align-items: center; border-radius: 50%; font-size: 0.8rem;">A</span>
+                                账户 ID: ${acc.accountID}
+                            </h3>
+                            <div style="display: flex; gap: 1.5rem; font-size: 0.875rem;">
+                                <span>总资产: <b style="color: var(--success)">CNY ${formatAmount(acc.totals.assetsInCNY)}</b></span>
+                                <span>总负债: <b style="color: var(--danger)">CNY ${formatAmount(acc.totals.liabilitiesInCNY)}</b></span>
+                                <span>净资产: <b style="color: #d97706">CNY ${formatAmount(acc.totals.netAssetsInCNY)}</b></span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                            <!-- Assets Side -->
+                            <div>
+                                <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.75rem; border-bottom: 1px dashed var(--border); padding-bottom: 0.25rem;">资产 (Assets)</h4>
+                                
+                                <!-- Cash Balance sub-section -->
+                                <div style="margin-bottom: 1.25rem;">
+                                    <div style="font-size: 0.8rem; font-weight: 600; color: #0284c7; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.25rem;">
+                                        <span style="display: inline-block; width: 6px; height: 6px; background: #0284c7; border-radius: 50%;"></span>
+                                        现金资产
+                                    </div>
+                                    ${acc.cash.length === 0 ? '<div style="font-size:0.8rem; color:var(--text-muted); padding: 0.5rem;">无现金存量</div>' : `
+                                    <div class="table-container">
+                                        <table style="width:100%; font-size:0.8rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="padding: 6px 4px; text-align: left;">币种</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">金额</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">折算汇率</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">折合人民币</th>
+                                                    <th style="padding: 6px 4px; text-align: center;">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${acc.cash.map(c => `
+                                                <tr>
+                                                    <td style="padding: 6px 4px;"><b>${c.currency}</b></td>
+                                                    <td style="padding: 6px 4px; text-align: right;">${formatAmount(c.amount)}</td>
+                                                    <td style="padding: 6px 4px; text-align: right; color: var(--text-muted);">${c.exchangeRate.toFixed(4)}</td>
+                                                    <td style="padding: 6px 4px; text-align: right;">${formatAmount(c.amountInCNY)}</td>
+                                                    <td style="padding: 6px 4px; text-align: center;">
+                                                        <button class="btn btn-danger btn-sm" style="padding: 2px 6px; font-size: 0.75rem;" onclick="deleteAccountBalance('${acc.accountID}', '${c.currency}')">删除</button>
+                                                    </td>
+                                                </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    `}
+                                </div>
+                                
+                                <!-- Securities sub-section -->
+                                <div>
+                                    <div style="font-size: 0.8rem; font-weight: 600; color: #7c3aed; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.25rem;">
+                                        <span style="display: inline-block; width: 6px; height: 6px; background: #7c3aed; border-radius: 50%;"></span>
+                                        证券资产 (多头仓位)
+                                    </div>
+                                    ${acc.securities.length === 0 ? '<div style="font-size:0.8rem; color:var(--text-muted); padding: 0.5rem;">无证券持仓</div>' : `
+                                    <div class="table-container">
+                                        <table style="width:100%; font-size:0.8rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="padding: 6px 4px; text-align: left;">证券代码</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">份额</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">成本/现价</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">折合人民币</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">盈亏</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${acc.securities.map(s => `
+                                                <tr>
+                                                    <td style="padding: 6px 4px;"><b>${s.ticker}</b> <span style="font-size: 0.7rem; color: var(--text-muted);">(${s.currency})</span></td>
+                                                    <td style="padding: 6px 4px; text-align: right;">${formatShares(s.shares)}</td>
+                                                    <td style="padding: 6px 4px; text-align: right;">
+                                                        <div>${formatAmount(s.costPerShare)}</div>
+                                                        <div style="color: var(--text-muted); font-size: 0.7rem;">${formatAmount(s.marketPrice)}</div>
+                                                    </td>
+                                                    <td style="padding: 6px 4px; text-align: right;">
+                                                        <b>${formatAmount(s.marketValueInCNY)}</b>
+                                                        <div style="color: var(--text-muted); font-size: 0.7rem;">成本 ${formatAmount(s.totalCostInCNY)}</div>
+                                                    </td>
+                                                    <td style="padding: 6px 4px; text-align: right; font-weight: 600; color: ${s.profitLossCNY >= 0 ? 'var(--success)' : 'var(--danger)'}">
+                                                        <div>${s.profitLossCNY >= 0 ? '+' : ''}${formatAmount(s.profitLossCNY)}</div>
+                                                        <div style="font-size: 0.7rem;">${s.profitLossPercent >= 0 ? '+' : ''}${s.profitLossPercent.toFixed(2)}%</div>
+                                                    </td>
+                                                </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    `}
+                                </div>
+                            </div>
+
+                            <!-- Liabilities & Equity Side -->
+                            <div style="border-left: 1px dashed var(--border); padding-left: 1.5rem;">
+                                <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.75rem; border-bottom: 1px dashed var(--border); padding-bottom: 0.25rem;">负债与权益 (Liabilities & Equity)</h4>
+                                
+                                <!-- Liabilities sub-section -->
+                                <div style="margin-bottom: 1.25rem;">
+                                    <div style="font-size: 0.8rem; font-weight: 600; color: var(--danger); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.25rem;">
+                                        <span style="display: inline-block; width: 6px; height: 6px; background: var(--danger); border-radius: 50%;"></span>
+                                        融资负债 / 债务
+                                    </div>
+                                    ${acc.liabilities.length === 0 ? '<div style="font-size:0.8rem; color:var(--text-muted); padding: 0.5rem;">无负债债务</div>' : `
+                                    <div class="table-container">
+                                        <table style="width:100%; font-size:0.8rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="padding: 6px 4px; text-align: left;">币种</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">负债金额</th>
+                                                    <th style="padding: 6px 4px; text-align: right;">折合人民币</th>
+                                                    <th style="padding: 6px 4px; text-align: center;">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${acc.liabilities.map(l => `
+                                                <tr>
+                                                    <td style="padding: 6px 4px;"><b>${l.currency}</b></td>
+                                                    <td style="padding: 6px 4px; text-align: right;">${formatAmount(l.amount)}</td>
+                                                    <td style="padding: 6px 4px; text-align: right;">${formatAmount(l.amountInCNY)}</td>
+                                                    <td style="padding: 6px 4px; text-align: center;">
+                                                        <button class="btn btn-danger btn-sm" style="padding: 2px 6px; font-size: 0.75rem;" onclick="deleteAccountBalance('${acc.accountID}', '${l.currency}')">删除</button>
+                                                    </td>
+                                                </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    `}
+                                </div>
+                                
+                                <!-- Equity (Net Assets) Box -->
+                                <div style="background: var(--bg); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid var(--border); margin-top: 1.5rem;">
+                                    <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">账户净权益 (Net Equity / Net Assets)</div>
+                                    <div style="font-size: 1.5rem; font-weight: 800; color: #d97706; margin-top: 0.25rem;">CNY ${formatAmount(acc.totals.netAssetsInCNY)}</div>
+                                    
+                                    <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border); font-size: 0.8rem; display: flex; justify-content: space-between;">
+                                        <span style="color: var(--text-muted);">证券持有成本: <b>CNY ${formatAmount(acc.totals.securitiesCostInCNY)}</b></span>
+                                        <span style="color: ${profitColor}; font-weight: 600;">
+                                            未实现盈亏: ${profitSign}${formatAmount(acc.totals.profitLossCNY)} (${profitSign}${acc.totals.profitLossPercent.toFixed(2)}%)
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function saveAccountBalance(e) {
+            e.preventDefault();
+            const accountID = document.getElementById('cb-accountID').value;
+            const currency = document.getElementById('cb-currency').value.toUpperCase();
+            const cash = parseFloat(document.getElementById('cb-cash').value);
+            const liability = parseFloat(document.getElementById('cb-liability').value);
+
+            const res = await fetch(`${API_BASE}/account-balances`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accountID, currency, cash, liability })
+            });
+
+            if (res.ok) {
+                loadBalanceSheet();
+                e.target.reset();
+            } else {
+                alert('保存账户余额失败');
+            }
+        }
+
+        async function deleteAccountBalance(accountID, currency) {
+            if (!confirm(`确定要删除账户 ${accountID} 在币种 ${currency} 的余额数据吗？`)) return;
+            const res = await fetch(`${API_BASE}/account-balances/${accountID}/${currency}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                loadBalanceSheet();
+            } else {
+                alert('删除账户余额失败');
+            }
         }
 
         // Initial load

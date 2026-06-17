@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Bubo Dividend Tracker Console - Analyze, track and forecast stock portfolio dividend distribution calendars.">
+    <title>Bubo DivTracker – 证券派息跟踪系统</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #070d19;
+            --bg-gradient: radial-gradient(circle at 50% 0%, #111a2e 0%, #070d19 100%);
+            --surface: rgba(17, 25, 40, 0.65);
+            --surface-hover: rgba(25, 38, 61, 0.85);
+            --surface-border: rgba(255, 255, 255, 0.08);
+            --surface-glow: rgba(99, 102, 241, 0.15);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent: #10b981;
+            --accent-dim: rgba(16, 185, 129, 0.15);
+            --text: #f3f4f6;
+            --muted: #9ca3af;
+            --border: rgba(255, 255, 255, 0.08);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            
+            --us-color: #3b82f6;
+            --hk-color: #f97316;
+            --cn-color: #ef4444;
+            --uk-color: #a855f7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            background: var(--bg);
+            background-image: var(--bg-gradient);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphic Shell */
+        .shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar styling */
+        .sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            background: rgba(10, 15, 28, 0.9);
+            border-right: 1px solid var(--surface-border);
+            display: flex;
+            flex-direction: column;
+            padding: 2.5rem 1.5rem;
+            gap: 0.8rem;
+            backdrop-filter: blur(20px);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 3rem;
+            letter-spacing: -0.04em;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1rem;
+            -webkit-text-fill-color: white;
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        .nav-item {
+            padding: 0.9rem 1.25rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--muted);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .nav-item.active {
+            background: var(--surface-glow);
+            color: #fff;
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Main view */
+        .main {
+            flex: 1;
+            padding: 2.5rem 3.5rem;
+            overflow-y: auto;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header-title h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: #fff;
+        }
+
+        .header-title p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        /* KPI Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(16px);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--primary);
+            opacity: 0.7;
+        }
+
+        .stat-card.accented::before {
+            background: var(--accent);
+        }
+
+        .stat-card label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .val {
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.02em;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .stat-card .desc {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-card .desc span {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        /* Glassmorphic Panels */
+        .panel {
+            display: none;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 1.25rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(16px);
+            margin-bottom: 2rem;
+        }
+
+        .card-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--surface-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        /* Buttons & Controls */
+        .btn {
+            padding: 0.6rem 1.25rem;
+            background: var(--primary);
+            color: #fff;
+            border: 1px solid transparent;
+            border-radius: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--surface-border);
+            color: var(--text);
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-accent:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Calendar Grid */
+        .calendar-layout {
+            display: grid;
+            grid-template-columns: 1.8fr 1fr;
+            gap: 2rem;
+        }
+
+        .calendar-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .calendar-month-year {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: white;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 0.75rem;
+            border-radius: 1rem;
+            border: 1px solid var(--surface-border);
+        }
+
+        .calendar-weekday {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--muted);
+            padding: 0.5rem 0;
+            letter-spacing: 0.05em;
+        }
+
+        .calendar-day {
+            min-height: 95px;
+            background: rgba(10, 15, 30, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 0.75rem;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.25;
+        }
+
+        .calendar-day:not(.other-month):hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .calendar-day-num {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .calendar-day.today .calendar-day-num {
+            color: var(--primary);
+            background: var(--surface-glow);
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        .calendar-day.has-events {
+            border-color: rgba(16, 185, 129, 0.25);
+            background: rgba(16, 185, 129, 0.02);
+        }
+
+        .calendar-day-events {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            overflow-y: auto;
+            max-height: 60px;
+        }
+
+        .calendar-event-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.15rem 0.3rem;
+            border-radius: 4px;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .calendar-event-tag:hover {
+            transform: scale(1.03);
+            filter: brightness(1.15);
+        }
+
+        /* Timeline view */
+        .timeline-container {
+            max-height: 650px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 1.5rem;
+            border-left: 2px solid var(--surface-border);
+            padding-bottom: 1.5rem;
+        }
+
+        .timeline-item:last-child {
+            padding-bottom: 0;
+            border-left: 2px solid transparent;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            left: -6px;
+            top: 6px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--muted);
+            border: 2px solid var(--bg);
+        }
+
+        .timeline-item.upcoming .timeline-marker {
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .timeline-date {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--muted);
+            margin-bottom: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .timeline-item.upcoming .timeline-date {
+            color: var(--accent);
+        }
+
+        .timeline-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--surface-border);
+            border-radius: 0.75rem;
+            padding: 0.9rem 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .timeline-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .timeline-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+        }
+
+        .timeline-ticker {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .timeline-account {
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        .timeline-payout {
+            text-align: right;
+        }
+
+        .timeline-payout-amount {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--accent);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .timeline-payout-shares {
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        /* Badges */
+        .badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.15rem 0.4rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .badge-us { background: rgba(59, 130, 246, 0.15); color: var(--us-color); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-hk { background: rgba(249, 115, 22, 0.15); color: var(--hk-color); border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-cn { background: rgba(239, 68, 68, 0.15); color: var(--cn-color); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-uk { background: rgba(168, 85, 247, 0.15); color: var(--uk-color); border: 1px solid rgba(168, 85, 247, 0.3); }
+
+        .badge-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-fetching { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+        .status-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-failed { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            padding: 1rem 1.5rem;
+            border-bottom: 2px solid var(--surface-border);
+        }
+
+        td {
+            padding: 1.1rem 1.5rem;
+            border-bottom: 1px solid var(--surface-border);
+            color: var(--text);
+            vertical-align: middle;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        /* Modal dialogs */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal {
+            background: #0f172a;
+            border: 1px solid var(--surface-border);
+            border-radius: 1.25rem;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+            overflow: hidden;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--surface-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: white;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.65rem 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--surface-border);
+            border-radius: 0.5rem;
+            color: white;
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Sync Loading Overlay */
+        .sync-loading-overlay {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--surface-border);
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            gap: 1rem;
+            z-index: 999;
+            backdrop-filter: blur(10px);
+        }
+
+        .sync-loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Date details popover */
+        .details-popover {
+            padding: 0.5rem;
+        }
+        .details-popover-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1.5rem;
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+        }
+        .details-popover-row:last-child {
+            margin-bottom: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">￥</div>
+            Bubo DivTracker
+        </div>
+        
+        <div class="nav-item active" onclick="switchTab('calendar', this)">
+            <span>📅</span> 派息日历
+        </div>
+        <div class="nav-item" onclick="switchTab('holdings', this)">
+            <span>📊</span> 我的持仓
+        </div>
+        <div class="nav-item" onclick="switchTab('database', this)">
+            <span>🗄️</span> 派息数据管理
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main">
+        <!-- Header -->
+        <header class="header-section">
+            <div class="header-title">
+                <h1 id="tab-title">派息日历</h1>
+                <p id="tab-subtitle">跟踪您持有的有价证券的最新分红与现金派发详情</p>
+            </div>
+            
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="syncAllHoldings()">
+                    <span>🔄</span> 同步所有持仓派息
+                </button>
+                <button class="btn" onclick="openAddModal()">
+                    <span>➕</span> 手动录入派息
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Metrics Grid -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <label>未来12月预计派息收入</label>
+                <div class="val" id="kpi-projected">¥0.00</div>
+                <div class="desc">CNY (汇率转换折算)</div>
+            </div>
+            <div class="stat-card accented">
+                <label>持仓综合平均股息率</label>
+                <div class="val" id="kpi-yield">0.00%</div>
+                <div class="desc">基于持仓成本的加权平均</div>
+            </div>
+            <div class="stat-card">
+                <label>今年已收派息累计</label>
+                <div class="val" id="kpi-received">¥0.00</div>
+                <div class="desc">YTD 累计已发放现金</div>
+            </div>
+            <div class="stat-card accented">
+                <label>下一笔预计派息</label>
+                <div class="val" id="kpi-next-amount">—</div>
+                <div class="desc" id="kpi-next-details">无即将到来的事件</div>
+            </div>
+        </section>
+
+        <!-- Tab 1: Calendar & Timeline -->
+        <div class="panel active" id="panel-calendar">
+            <div class="calendar-layout">
+                <!-- Left: Interactive Grid -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">分红发放月度视图</span>
+                        <div class="calendar-controls">
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem;" onclick="prevMonth()">&lt;</button>
+                            <span class="calendar-month-year" style="margin: 0 1rem;" id="calendar-title">2026年 06月</span>
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem;" onclick="nextMonth()">&gt;</button>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 1rem;">
+                        <div class="calendar-grid" id="calendar-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Timeline List -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">派息事件流水线 (Timeline)</span>
+                        <select class="form-control" style="width: auto; padding: 0.35rem 0.75rem;" id="timeline-filter" onchange="renderTimeline()">
+                            <option value="all">所有事件</option>
+                            <option value="upcoming">即将到来</option>
+                            <option value="past">历史已付</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div class="timeline-container" id="timeline-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Holdings -->
+        <div class="panel" id="panel-holdings">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">当前有价证券持仓派息跟踪状况</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>证券代码</th>
+                                <th>持仓数量</th>
+                                <th>每股成本</th>
+                                <th>参考年度每股分红</th>
+                                <th>年化股息率 (成本)</th>
+                                <th>预计年分红金额</th>
+                                <th>派息数据同步状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="holdings-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Raw Database Manager -->
+        <div class="panel" id="panel-database">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">系统派息数据库记录 (SQLite)</span>
+                    <div style="display: flex; gap: 1rem;">
+                        <input type="text" class="form-control" style="width: 200px; padding: 0.45rem 0.75rem;" id="db-search" placeholder="搜索证券代码..." oninput="loadDatabase()">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>证券代码</th>
+                                <th>除权除息日</th>
+                                <th>股权登记日</th>
+                                <th>发放日期</th>
+                                <th>每股分红金额</th>
+                                <th>币种</th>
+                                <th>类型</th>
+                                <th>同步时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="db-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Modal: Add Manual Dividend -->
+<div class="modal-overlay" id="add-modal" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modal-title">手动录入分红派息</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="dividend-form" onsubmit="saveManualDividend(event)">
+                <div class="form-group">
+                    <label for="f-ticker">证券代码 (必填，如 AAPL, 0700.HK, 600519.SS)</label>
+                    <input type="text" id="f-ticker" class="form-control" placeholder="输入完整证券代码" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="f-ex-date">除权除息日 (必填)</label>
+                        <input type="date" id="f-ex-date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-pay-date">发放付款日期 (选填)</label>
+                        <input type="date" id="f-pay-date" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="f-record-date">股权登记日 (选填)</label>
+                        <input type="date" id="f-record-date" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="f-type">分红类型</label>
+                        <select id="f-type" class="form-control">
+                            <option value="Cash">Cash (普通现金派息)</option>
+                            <option value="Final">Final (末期分红)</option>
+                            <option value="Interim">Interim (中期分红)</option>
+                            <option value="Special">Special (特别分红)</option>
+                            <option value="Quarterly">Quarterly (季度分红)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="f-amount">每股派息金额 (必填，如 0.27)</label>
+                        <input type="number" id="f-amount" step="0.00001" class="form-control" placeholder="0.0000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-currency">币种 (必填)</label>
+                        <select id="f-currency" class="form-control">
+                            <option value="CNY">CNY (人民币)</option>
+                            <option value="USD">USD (美元)</option>
+                            <option value="HKD">HKD (港币)</option>
+                            <option value="GBP">GBP (英镑)</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-accent">保存记录</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Event Details -->
+<div class="modal-overlay" id="event-detail-modal" onclick="closeModalOnOverlay(event)">
+    <div class="modal" style="max-width: 420px;">
+        <div class="modal-header">
+            <h3>派息明细</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body" id="event-detail-body">
+            <!-- Populated dynamically -->
+        </div>
+        <div style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; border-top: 1px solid var(--surface-border);">
+            <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sync Loading Notification Overlay -->
+<div class="sync-loading-overlay" id="sync-overlay">
+    <div class="spinner"></div>
+    <div>
+        <div style="font-weight:700; color: white;">数据抓取中</div>
+        <div style="font-size:0.75rem; color:var(--muted);" id="sync-overlay-text">正在更新证券派息信息...</div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script>
+    // Global State
+    let calendarData = { events: [], summary: {} };
+    let activeAssets = [];
+    let fetchLogs = [];
+    let currentMonth = new Date();
+    
+    // Switch tabs
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        
+        document.getElementById('panel-' + tabId).classList.add('active');
+        el.classList.add('active');
+        
+        const titleMap = {
+            'calendar': { title: '派息日历', subtitle: '跟踪您持有的有价证券的最新分红与现金派发详情' },
+            'holdings': { title: '我的持仓派息率', subtitle: '查看当前持仓组合的累计分红预测与 Yield on Cost (成本股息率)' },
+            'database': { title: '派息数据维护', subtitle: '全量浏览系统内的 SQLite 分红记录库，支持手动修正数据' }
+        };
+        
+        document.getElementById('tab-title').innerText = titleMap[tabId].title;
+        document.getElementById('tab-subtitle').innerText = titleMap[tabId].subtitle;
+        
+        if (tabId === 'calendar') {
+            loadCalendar();
+        } else if (tabId === 'holdings') {
+            loadHoldings();
+        } else if (tabId === 'database') {
+            loadDatabase();
+        }
+    }
+
+    // Helper functions for formatters
+    function fmtCNY(val) {
+        if (val == null || isNaN(val)) return '¥0.00';
+        return '¥' + Number(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtYield(val) {
+        if (val == null || isNaN(val)) return '0.00%';
+        return Number(val).toFixed(2) + '%';
+    }
+    
+    function getBadgeClass(ticker) {
+        if (ticker.endsWith('.HK')) return 'badge-hk';
+        if (ticker.endsWith('.SS') || ticker.endsWith('.SZ')) return 'badge-cn';
+        if (ticker.endsWith('.L')) return 'badge-uk';
+        return 'badge-us';
+    }
+
+    function getMarketName(ticker) {
+        if (ticker.endsWith('.HK')) return '港股';
+        if (ticker.endsWith('.SS') || ticker.endsWith('.SZ')) return 'A股';
+        if (ticker.endsWith('.L')) return '伦交所';
+        return '美股';
+    }
+
+    // Initialize application
+    async function init() {
+        showSyncOverlay("正在载入数据...");
+        try {
+            await Promise.all([
+                loadCalendar(),
+                loadFetchLogs()
+            ]);
+        } catch(e) {
+            console.error("Initialization error:", e);
+        } finally {
+            hideSyncOverlay();
+        }
+    }
+
+    // ── Tab 1: Calendar and Projections ────────────────────────
+    async function loadCalendar() {
+        try {
+            const res = await fetch('/api/calendar');
+            calendarData = await res.json();
+            
+            // Render KPI elements
+            const summary = calendarData.summary || {};
+            document.getElementById('kpi-projected').innerText = fmtCNY(summary.total_projected_12m_cny);
+            document.getElementById('kpi-yield').innerText = fmtYield(summary.weighted_yield);
+            document.getElementById('kpi-received').innerText = fmtCNY(summary.total_received_ytd_cny);
+            
+            if (summary.upcoming_event) {
+                const event = summary.upcoming_event;
+                document.getElementById('kpi-next-amount').innerText = fmtCNY(event.payout_cny);
+                document.getElementById('kpi-next-details').innerText = `${event.ticker} - 发放日 ${event.payment_date || event.ex_div_date}`;
+            } else {
+                document.getElementById('kpi-next-amount').innerText = '—';
+                document.getElementById('kpi-next-details').innerText = '无即将到来的事件';
+            }
+            
+            renderCalendarGrid();
+            renderTimeline();
+        } catch (err) {
+            console.error("Error loading calendar details:", err);
+        }
+    }
+
+    // Calendar grid rendering
+    function renderCalendarGrid() {
+        const grid = document.getElementById('calendar-grid');
+        grid.innerHTML = '';
+        
+        // Month details
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        
+        document.getElementById('calendar-title').innerText = `${year}年 ${(month + 1).toString().padStart(2, '0')}月`;
+        
+        // Print weekdays header
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        weekdays.forEach(w => {
+            const el = document.createElement('div');
+            el.className = 'calendar-weekday';
+            el.innerText = w;
+            grid.appendChild(el);
+        });
+        
+        // Days grid math
+        const firstDay = new Date(year, month, 1);
+        const startingDayOfWeek = firstDay.getDay(); // 0 is Sunday
+        const lastDay = new Date(year, month + 1, 0);
+        const totalDays = lastDay.getDate();
+        
+        // Previous month days to pad
+        const prevMonthLast = new Date(year, month, 0).getDate();
+        for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+            const dayNum = prevMonthLast - i;
+            const el = document.createElement('div');
+            el.className = 'calendar-day other-month';
+            el.innerHTML = `<span class="calendar-day-num">${dayNum}</span>`;
+            grid.appendChild(el);
+        }
+        
+        // Current month days
+        const today = new Date();
+        for (let day = 1; day <= totalDays; day++) {
+            const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            const el = document.createElement('div');
+            el.className = 'calendar-day';
+            
+            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+            if (isToday) el.classList.add('today');
+            
+            // Query events for this date (match primary_date)
+            const dayEvents = (calendarData.events || []).filter(e => e.primary_date === dateStr);
+            
+            let eventsHtml = '';
+            if (dayEvents.length > 0) {
+                el.classList.add('has-events');
+                eventsHtml = `<div class="calendar-day-events">`;
+                dayEvents.forEach((ev, idx) => {
+                    const color = getBadgeColor(ev.ticker);
+                    eventsHtml += `
+                        <div class="calendar-event-tag" style="background:${color}" onclick="showEventDetails(event, ${JSON.stringify(ev).replace(/"/g, '&quot;')})">
+                            ${ev.ticker} ¥${Math.round(ev.payout_cny)}
+                        </div>
+                    `;
+                });
+                eventsHtml += `</div>`;
+            }
+            
+            el.innerHTML = `
+                <span class="calendar-day-num">${day}</span>
+                ${eventsHtml}
+            `;
+            grid.appendChild(el);
+        }
+        
+        // Next month padding days to complete grid (multiples of 7)
+        const filledCells = startingDayOfWeek + totalDays;
+        const remainingCells = (7 - (filledCells % 7)) % 7;
+        for (let day = 1; day <= remainingCells; day++) {
+            const el = document.createElement('div');
+            el.className = 'calendar-day other-month';
+            el.innerHTML = `<span class="calendar-day-num">${day}</span>`;
+            grid.appendChild(el);
+        }
+    }
+    
+    function getBadgeColor(ticker) {
+        if (ticker.endswith && ticker.endswith('.HK') || ticker.endsWith('.HK')) return 'var(--hk-color)';
+        if (ticker.endswith && ticker.endswith('.SS') || ticker.endsWith('.SS') || ticker.endsWith('.SZ')) return 'var(--cn-color)';
+        if (ticker.endswith && ticker.endswith('.L') || ticker.endsWith('.L')) return 'var(--uk-color)';
+        return 'var(--us-color)';
+    }
+
+    function prevMonth() {
+        currentMonth.setMonth(currentMonth.getMonth() - 1);
+        renderCalendarGrid();
+    }
+
+    function nextMonth() {
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+        renderCalendarGrid();
+    }
+
+    // Timeline list rendering
+    function renderTimeline() {
+        const list = document.getElementById('timeline-list');
+        list.innerHTML = '';
+        
+        const filter = document.getElementById('timeline-filter').value;
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        let filteredEvents = calendarData.events || [];
+        if (filter === 'upcoming') {
+            filteredEvents = filteredEvents.filter(e => e.primary_date >= todayStr);
+        } else if (filter === 'past') {
+            filteredEvents = filteredEvents.filter(e => e.primary_date < todayStr);
+        }
+        
+        // Take top 30
+        filteredEvents = filteredEvents.slice(0, 30);
+        
+        if (filteredEvents.length === 0) {
+            list.innerHTML = `<p style="color:var(--muted); text-align:center; padding: 2rem 0;">没有匹配的分红派息事件</p>`;
+            return;
+        }
+        
+        filteredEvents.forEach(e => {
+            const isUpcoming = e.primary_date >= todayStr;
+            const marketBadge = getBadgeClass(e.ticker);
+            const marketName = getMarketName(e.ticker);
+            
+            const item = document.createElement('div');
+            item.className = `timeline-item ${isUpcoming ? 'upcoming' : ''}`;
+            
+            item.innerHTML = `
+                <div class="timeline-marker"></div>
+                <div class="timeline-date">${e.primary_date} ${isUpcoming ? '(预计)' : ''}</div>
+                <div class="timeline-card">
+                    <div class="timeline-info">
+                        <span class="timeline-ticker">
+                            ${e.ticker}
+                            <span class="badge ${marketBadge}">${marketName}</span>
+                        </span>
+                        <span class="timeline-account">持仓账户: ${e.accountID}</span>
+                    </div>
+                    <div class="timeline-payout">
+                        <span class="timeline-payout-amount">+${fmtCNY(e.payout_cny)}</span>
+                        <div class="timeline-payout-shares">每股: ${e.amount} ${e.currency} | 持股: ${Math.round(e.shares)}</div>
+                    </div>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    function showEventDetails(event, ev) {
+        event.stopPropagation();
+        const modal = document.getElementById('event-detail-modal');
+        const body = document.getElementById('event-detail-body');
+        
+        body.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <span style="font-size:1.5rem; font-weight:800; color:white; font-family:'JetBrains Mono',monospace;">${ev.ticker}</span>
+                <span class="badge ${getBadgeClass(ev.ticker)}" style="font-size:0.8rem; padding:0.25rem 0.6rem;">${getMarketName(ev.ticker)}</span>
+            </div>
+            <div class="details-popover">
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">账户ID</span>
+                    <span style="color:white; font-weight:600;">${ev.accountID}</span>
+                </div>
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">持股数量</span>
+                    <span style="color:white; font-weight:600;">${Number(ev.shares).toLocaleString()} 股</span>
+                </div>
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">每股派息率</span>
+                    <span style="color:white; font-weight:600; font-family:'JetBrains Mono',monospace;">${ev.amount} ${ev.currency}</span>
+                </div>
+                <div class="details-popover-row" style="margin-bottom: 1rem;">
+                    <span style="color:var(--muted)">预计派发红利</span>
+                    <span style="color:var(--accent); font-weight:800; font-size:1.1rem;">${ev.currency} ${ev.payout.toFixed(2)}</span>
+                </div>
+                <hr style="border:none; border-top:1px solid var(--surface-border); margin-bottom:1rem;">
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">折合人民币</span>
+                    <span style="color:white; font-weight:700;">${fmtCNY(ev.payout_cny)}</span>
+                </div>
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">除权除息日</span>
+                    <span style="color:white; font-family:'JetBrains Mono',monospace;">${ev.ex_div_date}</span>
+                </div>
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">股权登记日</span>
+                    <span style="color:white; font-family:'JetBrains Mono',monospace;">${ev.record_date || '—'}</span>
+                </div>
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">现金发放日</span>
+                    <span style="color:white; font-family:'JetBrains Mono',monospace;">${ev.payment_date || '—'}</span>
+                </div>
+                <div class="details-popover-row">
+                    <span style="color:var(--muted)">派息类型</span>
+                    <span style="color:white;">${ev.dividend_type || 'Cash'}</span>
+                </div>
+            </div>
+        `;
+        modal.classList.add('active');
+    }
+
+    // ── Tab 2: Holdings & Tracking Yields ──────────────────────
+    async function loadHoldings() {
+        const tbody = document.getElementById('holdings-table-body');
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted);">正在读取持仓资产并计算股息率...</td></tr>`;
+        
+        try {
+            // Fetch assets
+            const assetsRes = await fetch('/api/assets');
+            activeAssets = await assetsRes.json();
+            
+            // Fetch fetch logs to get status
+            await loadFetchLogs();
+            
+            // Filter down to active stock holdings
+            const stocks = activeAssets.filter(a => a.ticker && a.shares > 0 && a.assetType === '股票' && !a.ticker.startsWith("US-GOVT") && !a.ticker.startsWith("CASH"));
+            
+            if (stocks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted);">账户中没有持有的股票资产</td></tr>`;
+                return;
+            }
+            
+            // For each stock, calculate projected annual dividend
+            // We group holdings by ticker to sum up shares and show consolidated stats per ticker
+            const tickersMap = {};
+            stocks.forEach(s => {
+                const t = s.ticker.toUpperCase();
+                if (!tickersMap[t]) {
+                    tickersMap[t] = {
+                        ticker: t,
+                        shares: 0,
+                        costValue: 0.0,
+                        currency: s.currency
+                    };
+                }
+                tickersMap[t].shares += s.shares;
+                tickersMap[t].costValue += (s.shares * s.costPerShare);
+            });
+            
+            tbody.innerHTML = '';
+            
+            for (const tKey in tickersMap) {
+                const stock = tickersMap[tKey];
+                const avgCost = stock.shares > 0 ? (stock.costValue / stock.shares) : 0;
+                
+                // Get dividends for this ticker to calculate indicated annual payout
+                const divRes = await fetch(`/api/dividends?ticker=${stock.ticker}`);
+                const divs = await divRes.json();
+                
+                // Sum up payouts in the last 365 days as reference annual dividend rate
+                const oneYearAgo = new Date();
+                oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+                const oneYearAgoStr = oneYearAgo.toISOString().split('T')[0];
+                
+                const recentDivs = divs.filter(d => d.ex_div_date >= oneYearAgoStr);
+                const annualRate = recentDivs.reduce((sum, d) => sum + d.amount, 0);
+                const currency = divs.length > 0 ? divs[0].currency : stock.currency;
+                
+                // Yield on cost
+                const yieldOnCost = avgCost > 0 ? (annualRate / avgCost * 100) : 0;
+                const totalAnnualProj = stock.shares * annualRate;
+                
+                // Sync status
+                const log = fetchLogs.find(l => l.ticker === stock.ticker);
+                let statusHtml = '<span class="badge" style="background:rgba(255,255,255,0.05); color:var(--muted);">未同步</span>';
+                if (log) {
+                    const timeStr = log.last_fetched_at ? log.last_fetched_at.slice(0, 16).replace('T', ' ') : '';
+                    if (log.status === 'success') {
+                        statusHtml = `<span class="badge status-success" title="同步于 ${timeStr}">同步成功</span>`;
+                    } else if (log.status === 'fetching') {
+                        statusHtml = `<span class="badge status-fetching">抓取中...</span>`;
+                    } else {
+                        statusHtml = `<span class="badge status-failed" title="错误: ${log.error_message || '未知'}">同步失败</span>`;
+                    }
+                }
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="mono" style="font-weight:700;">
+                        ${stock.ticker}
+                        <span class="badge ${getBadgeClass(stock.ticker)}" style="margin-left: 0.35rem;">${getMarketName(stock.ticker)}</span>
+                    </td>
+                    <td>${Number(stock.shares.toFixed(2)).toLocaleString()}</td>
+                    <td class="mono">${avgCost.toFixed(4)} ${stock.currency}</td>
+                    <td class="mono">${annualRate.toFixed(4)} ${currency}</td>
+                    <td class="mono" style="color:var(--accent); font-weight:700;">${fmtYield(yieldOnCost)}</td>
+                    <td class="mono" style="font-weight:700;">${totalAnnualProj > 0 ? `${currency} ${totalAnnualProj.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—'}</td>
+                    <td>${statusHtml}</td>
+                    <td>
+                        <button class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.75rem;" onclick="syncSingleTicker('${stock.ticker}')">
+                            🔄 同步派息
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        } catch (err) {
+            console.error("Error loading holdings yield analysis:", err);
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#ef4444;">读取或计算持仓数据出错</td></tr>`;
+        }
+    }
+
+    async function loadFetchLogs() {
+        try {
+            const res = await fetch('/api/fetch_log');
+            fetchLogs = await res.json();
+        } catch (err) {
+            console.error("Error loading fetch logs:", err);
+        }
+    }
+
+    // ── Tab 3: SQLite Database Manager ────────────────────────
+    async function loadDatabase() {
+        const tbody = document.getElementById('db-table-body');
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted);">正在拉取底层 SQLite 数据库记录...</td></tr>`;
+        
+        try {
+            const search = document.getElementById('db-search').value.trim();
+            let url = '/api/dividends';
+            if (search) {
+                url += `?ticker=${search}`;
+            }
+            
+            const res = await fetch(url);
+            const rows = await res.json();
+            
+            if (rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted);">数据库中没有任何分红记录</td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            rows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="mono" style="font-weight:700;">
+                        ${r.ticker}
+                        <span class="badge ${getBadgeClass(r.ticker)}" style="margin-left: 0.35rem;">${getMarketName(r.ticker)}</span>
+                    </td>
+                    <td class="mono">${r.ex_div_date}</td>
+                    <td class="mono">${r.record_date || '—'}</td>
+                    <td class="mono">${r.payment_date || '—'}</td>
+                    <td class="mono" style="font-weight:700; color:white;">${r.amount.toFixed(4)}</td>
+                    <td class="mono">${r.currency}</td>
+                    <td><span class="badge" style="background:rgba(255,255,255,0.05); color:white;">${r.dividend_type || 'Cash'}</span></td>
+                    <td style="font-size:0.75rem; color:var(--muted);">${r.updated_at ? r.updated_at.slice(0, 19).replace('T', ' ') : '—'}</td>
+                    <td style="display:flex; gap:0.5rem;">
+                        <button class="btn btn-secondary" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="openEditModal(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+                            编辑
+                        </button>
+                        <button class="btn btn-danger" style="padding:0.25rem 0.5rem; font-size:0.75rem;" onclick="deleteRecord('${r.ticker}', '${r.ex_div_date}')">
+                            删除
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error("Error loading SQLite records:", err);
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#ef4444;">抓取 SQLite 派息详情发生错误</td></tr>`;
+        }
+    }
+
+    // ── Sync Actions ──────────────────────────────────────────
+    async function syncSingleTicker(ticker) {
+        showSyncOverlay(`正在同步 ${ticker} 的派息数据...`);
+        try {
+            const res = await fetch('/api/dividends/fetch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tickers: [ticker] })
+            });
+            const data = await res.json();
+            
+            // Poll for completion (simplified: wait 4 seconds, then check logs)
+            setTimeout(async () => {
+                await loadHoldings();
+                await loadCalendar();
+                hideSyncOverlay();
+            }, 4000);
+        } catch (e) {
+            console.error(e);
+            alert("同步失败：" + e.message);
+            hideSyncOverlay();
+        }
+    }
+
+    async function syncAllHoldings() {
+        showSyncOverlay("正在开始对所有有价证券持仓进行增量抓取 (FastAPI / Background tasks)...");
+        try {
+            const res = await fetch('/api/dividends/fetch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await res.json();
+            
+            // Check if ignored or active
+            if (data.status === 'ignored') {
+                hideSyncOverlay();
+                alert(data.message);
+                return;
+            }
+            
+            // Poll wait logic
+            let timer = 8;
+            const interval = setInterval(() => {
+                timer--;
+                document.getElementById('sync-overlay-text').innerText = `正在更新派息数据，剩余约 ${timer} 秒...`;
+                if (timer <= 0) {
+                    clearInterval(interval);
+                    // reload
+                    loadCalendar().then(() => {
+                        const activeTab = document.querySelector('.nav-item.active').innerText;
+                        if (activeTab.includes('我的持仓')) loadHoldings();
+                        if (activeTab.includes('派息数据')) loadDatabase();
+                        hideSyncOverlay();
+                        alert("多线程分红派息更新执行完毕，已重载日历与最新指标！");
+                    });
+                }
+            }, 1000);
+            
+        } catch (e) {
+            console.error(e);
+            alert("发起全局同步失败：" + e.message);
+            hideSyncOverlay();
+        }
+    }
+
+    // Overlay visual helpers
+    function showSyncOverlay(text) {
+        const overlay = document.getElementById('sync-overlay');
+        document.getElementById('sync-overlay-text').innerText = text;
+        overlay.classList.add('active');
+    }
+
+    function hideSyncOverlay() {
+        const overlay = document.getElementById('sync-overlay');
+        overlay.classList.remove('active');
+    }
+
+    // ── Form Modals ───────────────────────────────────────────
+    function openAddModal() {
+        document.getElementById('modal-title').innerText = "手动录入分红派息";
+        document.getElementById('dividend-form').reset();
+        document.getElementById('f-ticker').removeAttribute('readonly');
+        document.getElementById('f-ex-date').removeAttribute('readonly');
+        
+        // Default today
+        document.getElementById('f-ex-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('add-modal').classList.add('active');
+    }
+
+    function openEditModal(record) {
+        document.getElementById('modal-title').innerText = "修改分红派息记录";
+        
+        document.getElementById('f-ticker').value = record.ticker;
+        document.getElementById('f-ticker').setAttribute('readonly', 'true');
+        
+        document.getElementById('f-ex-date').value = record.ex_div_date;
+        document.getElementById('f-ex-date').setAttribute('readonly', 'true');
+        
+        document.getElementById('f-pay-date').value = record.payment_date || '';
+        document.getElementById('f-record-date').value = record.record_date || '';
+        document.getElementById('f-amount').value = record.amount;
+        document.getElementById('f-currency').value = record.currency;
+        document.getElementById('f-type').value = record.dividend_type || 'Cash';
+        
+        document.getElementById('add-modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('add-modal').classList.remove('active');
+        document.getElementById('event-detail-modal').classList.remove('active');
+    }
+
+    function closeModalOnOverlay(e) {
+        if (e.target === e.currentTarget) {
+            closeModal();
+        }
+    }
+
+    async function saveManualDividend(e) {
+        e.preventDefault();
+        
+        const payload = {
+            ticker: document.getElementById('f-ticker').value.trim().toUpperCase(),
+            ex_div_date: document.getElementById('f-ex-date').value,
+            payment_date: document.getElementById('f-pay-date').value || null,
+            record_date: document.getElementById('f-record-date').value || null,
+            amount: parseFloat(document.getElementById('f-amount').value),
+            currency: document.getElementById('f-currency').value,
+            dividend_type: document.getElementById('f-type').value
+        };
+        
+        try {
+            const res = await fetch('/api/dividends/manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || '保存记录失败');
+            }
+            
+            closeModal();
+            
+            // Reload active panel
+            const activeTab = document.querySelector('.nav-item.active').innerText;
+            await loadCalendar();
+            if (activeTab.includes('我的持仓')) await loadHoldings();
+            if (activeTab.includes('派息数据')) await loadDatabase();
+            
+            alert("分红派息记录保存成功！");
+        } catch (err) {
+            alert("保存失败: " + err.message);
+        }
+    }
+
+    async function deleteRecord(ticker, ex_div_date) {
+        if (!confirm(`确定要永久删除 ${ticker} 于 ${ex_div_date} 的派息记录吗？`)) return;
+        
+        try {
+            const res = await fetch(`/api/dividends/${ticker}/${ex_div_date}`, {
+                method: 'DELETE'
+            });
+            
+            if (!res.ok) {
+                throw new Error('删除失败');
+            }
+            
+            // Reload active panel
+            const activeTab = document.querySelector('.nav-item.active').innerText;
+            await loadCalendar();
+            if (activeTab.includes('我的持仓')) await loadHoldings();
+            if (activeTab.includes('派息数据')) await loadDatabase();
+            
+            alert("派息记录已成功删除。");
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Run on window load
+    window.onload = init;
+
+</script>
+</body>
+</html>

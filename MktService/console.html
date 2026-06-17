@@ -178,6 +178,7 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('market')">行情数据 (Market Data)</button>
+            <button class="tab-btn" onclick="switchTab('macro')">宏观数据 (Macro Data)</button>
             <button class="tab-btn" onclick="switchTab('securities')">证券信息 (Securities Info)</button>
         </div>
 
@@ -233,6 +234,32 @@
                                 <th>Change %</th>
                                 <th>Time</th>
                                 <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Macro Data Section -->
+        <div id="macro-section" class="hidden">
+            <div class="card">
+                <div class="section-header">
+                    <h2 class="section-title">宏观数据 - 美国国债收益率</h2>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <button class="btn btn-primary" onclick="loadMacroData()">刷新数据</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="macro-table">
+                        <thead>
+                            <tr>
+                                <th>名称 (Name)</th>
+                                <th>期限标识 (Maturity Key)</th>
+                                <th>收益率 (Yield Rate)</th>
+                                <th>发布日期 (Record Date)</th>
+                                <th>数据来源 (Source)</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -332,17 +359,60 @@
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.toLowerCase().includes(tab));
+            
+            let tabSelector = '';
+            if (tab === 'market') tabSelector = '行情数据';
+            else if (tab === 'macro') tabSelector = '宏观数据';
+            else if (tab === 'securities') tabSelector = '证券信息';
+
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.includes(tabSelector));
             if (btn) btn.classList.add('active');
             
+            document.getElementById('market-section').classList.add('hidden');
+            document.getElementById('macro-section').classList.add('hidden');
+            document.getElementById('securities-section').classList.add('hidden');
+
             if (tab === 'market') {
                 document.getElementById('market-section').classList.remove('hidden');
-                document.getElementById('securities-section').classList.add('hidden');
                 loadMarketData();
+            } else if (tab === 'macro') {
+                document.getElementById('macro-section').classList.remove('hidden');
+                loadMacroData();
             } else {
-                document.getElementById('market-section').classList.add('hidden');
                 document.getElementById('securities-section').classList.remove('hidden');
                 loadSecInfo();
+            }
+        }
+
+        async function loadMacroData() {
+            try {
+                const tbody = document.querySelector('#macro-table tbody');
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">加载中...</td></tr>';
+                
+                const res = await fetch(`${API_BASE}/macro`);
+                if (!res.ok) {
+                    throw new Error(`请求失败: ${res.statusText}`);
+                }
+                const data = await res.json();
+                
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">暂无数据</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(m => `
+                    <tr>
+                        <td><b>${m.name}</b></td>
+                        <td><span class="badge" style="background: var(--primary); color: white; border-color: var(--primary);">${m.from}</span></td>
+                        <td style="font-weight: 600; color: var(--primary);">${m.rate.toFixed(2)}%</td>
+                        <td>${m.record_date}</td>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">${m.source || '未知来源'}</td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                const tbody = document.querySelector('#macro-table tbody');
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger);">加载失败: ${err.message}</td></tr>`;
             }
         }
 

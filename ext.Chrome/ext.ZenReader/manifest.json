@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "ZenReader",
+  "version": "1.0",
+  "description": "一键将网页转换为类似巴菲特知识库的纯净阅读界面",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "downloads"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://main.bard-console.pages.dev/*",
+      "http://localhost/*"
+    ]
+  },
+  "host_permissions": [
+    "https://*/*"
+  ],
+  "action": {
+    "default_icon": "icons/icon128.png",
+    "default_title": "进入 ZenReader 阅读模式",
+    "default_popup": "src/popup.html"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "options_page": "src/options.html",
+  "commands": {
+    "enter-zen-mode": {
+      "suggested_key": {
+        "default": "Alt+R",
+        "mac": "Alt+R"
+      },
+      "description": "Enter ZenReader Mode"
+    }
+  },
+  "icons": {
+    "128": "icons/icon128.png"
+  }
+}

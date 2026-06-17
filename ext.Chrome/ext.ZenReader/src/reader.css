@@ -1,0 +1,352 @@
+:root {
+  /* 调色板 */
+  --zen-bg: #fcfcfc;
+  --zen-text: #3c3c43;
+  --zen-link: #8c1616;
+  --zen-table-border: #dee2e6;
+  --zen-table-zebra: #f9f9f9;
+  --zen-sidebar-bg: #f6f6f7;
+  --zen-sidebar-border: #dee2e6;
+  
+  /* 排版参数 */
+  --zen-max-width: 760px;
+  --zen-font-size: 16px;
+  --zen-line-height: 1.8;
+  --zen-para-spacing: 1.6em;
+  
+  /* 字体系列: 英文优先，中文严格保持 "苹方/微软雅黑" 组合 */
+  --zen-font-family: "Inter", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--zen-bg);
+  display: flex;
+}
+
+/* 侧边栏目录 */
+.sidebar {
+  width: 280px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background-color: var(--zen-sidebar-bg);
+  border-right: 1px solid var(--zen-sidebar-border);
+  padding: 20px;
+  overflow-y: auto;
+  font-family: var(--zen-font-family);
+  scrollbar-width: thin;
+}
+
+.sidebar-header {
+  font-size: 16px;
+  font-weight: bold;
+  color: #555;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
+}
+
+#toc ul {
+  list-style: none;
+  padding-left: 15px;
+  margin: 0;
+}
+
+#toc > ul {
+  padding-left: 0;
+}
+
+#toc li {
+  margin-bottom: 10px;
+}
+
+#toc a {
+  text-decoration: none;
+  color: var(--zen-text);
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+#toc a:hover {
+  color: var(--zen-link);
+}
+
+/* 复刻目标网站的排版 */
+.reader-container {
+  flex: 1;
+  max-width: var(--zen-max-width);
+  margin: 0 auto;
+  padding: 40px 40px 100px;
+  font-family: var(--zen-font-family);
+  color: var(--zen-text);
+  line-height: var(--zen-line-height);
+  font-size: var(--zen-font-size);
+}
+
+header {
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+#article-title {
+  font-size: 32px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+#article-byline {
+  font-size: 14px;
+  color: #888;
+}
+
+#article-content h1,
+#article-content h2,
+#article-content h3,
+#article-content h4 {
+  margin-top: 2em;
+  margin-bottom: 1em;
+  color: #1a1a1a;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+#article-content p {
+  margin-top: 0;
+  margin-bottom: var(--zen-para-spacing);
+  text-align: justify;
+}
+
+#article-content a {
+  color: var(--zen-link);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(140, 22, 22, 0.3);
+  transition: border-color 0.2s;
+}
+
+#article-content a:hover {
+  border-bottom-color: var(--zen-link);
+}
+
+/* 规范化表格容器，实现移动端响应式，支持滚动 */
+.table-wrapper {
+  overflow-x: auto;
+  margin: var(--zen-para-spacing) 0;
+  border: none; /* 去除外部包裹的边框竖线 */
+}
+
+/* 表格复刻 */
+#article-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0; /* 外部容器有了 margin，这里清零 */
+  font-size: 0.9em;
+  min-width: 600px; /* 保证表格不要挤在一起 */
+  font-variant-numeric: tabular-nums; /* 保证财务数字对齐 */
+}
+
+#article-content th, 
+#article-content td {
+  padding: 12px;
+  border-bottom: 1px solid var(--zen-table-border);
+  text-align: right; /* 金融数据习惯右对齐 */
+}
+
+#article-content th:first-child,
+#article-content td:first-child {
+  text-align: left; /* 第一列一般是指标名称，左对齐更合适 */
+}
+
+#article-content tr:nth-child(even) {
+  background-color: var(--zen-table-zebra);
+}
+
+/* 特别处理：图片居中 */
+#article-content figure,
+.img-wrapper {
+  display: block;
+  text-align: center;
+  margin: var(--zen-para-spacing) auto;
+}
+
+#article-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 4px;
+}
+
+#article-content figcaption {
+  font-size: 14px;
+  color: #777;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* 响应式适配 */
+@media (max-width: 900px) {
+  body {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 30vh;
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--zen-sidebar-border);
+  }
+  .reader-container {
+    padding: 20px;
+  }
+}
+
+/* 生产力工具栏样式 */
+.action-bar {
+  width: 300px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background-color: var(--zen-sidebar-bg);
+  border-left: 1px solid var(--zen-sidebar-border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.03);
+}
+
+.action-header {
+  font-size: 16px;
+  font-weight: bold;
+  color: #555;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px;
+}
+
+.action-buttons button {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: none;
+  background-color: #2c3e50;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+
+.action-buttons button:hover {
+  opacity: 0.9;
+}
+
+#btn-export-md {
+  background-color: #8c1616;
+}
+
+#btn-delete-bookmark {
+  background-color: #dc3545;
+}
+
+#btn-create-card {
+  background-color: #28a745;
+}
+
+#ai-output {
+  flex-grow: 1;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--zen-table-border);
+  border-radius: 4px;
+  resize: none;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--zen-text);
+  background-color: #fff;
+}
+
+/* Modal 弹窗样式 */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  font-family: var(--zen-font-family);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h3 { margin: 0; font-size: 18px; }
+
+#close-modal {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+}
+
+.modal-body label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.modal-body input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.modal-footer {
+  margin-top: 10px;
+}
+
+#btn-save-card {
+  width: 100%;
+  padding: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#btn-save-card:hover {
+  opacity: 0.9;
+}

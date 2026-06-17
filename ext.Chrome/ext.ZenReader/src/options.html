@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>ZenReader 规则配置引擎</title>
+    <style>
+        body { font-family: "Inter", "Microsoft YaHei", sans-serif; max-width: 650px; margin: 40px auto; padding: 20px; color: #3c3c43; background: #fff; }
+        h1 { font-size: 24px; border-bottom: 2px solid #dee2e6; padding-bottom: 15px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: monospace; }
+        button { background: #8c1616; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: bold; }
+        button:hover { opacity: 0.9; }
+        #rules-list { margin-top: 40px; }
+        .rule-item { border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fcfcfc; }
+        .rule-code { font-family: monospace; font-size: 13px; color: #555; margin-top: 5px; }
+        .rule-item button { background: #dc3545; padding: 6px 12px; font-size: 13px; font-weight: normal; }
+    </style>
+</head>
+<body>
+    <h1>🛠️ 自定义规则引擎 (Rule Engine)</h1>
+    <p style="font-size: 14px; color: #666; margin-bottom: 30px;">
+        配置站点的特有提取映射表。其优先级最高，会凌驾于系统的通用算法 Readability.js 以及内置的 defaultRules.js 之上。
+    </p>
+    
+    <div class="form-group">
+        <label>域名 Domain (匹配规则，例如: xueqiu.com)</label>
+        <input type="text" id="domain" placeholder="zhihu.com">
+    </div>
+    <div class="form-group">
+        <label>标题规则 Title CSS Selector</label>
+        <input type="text" id="titleSel" placeholder="h1.Post-Title">
+    </div>
+    <div class="form-group">
+        <label>正文规则 Content CSS Selector</label>
+        <input type="text" id="contentSel" placeholder="div.RichText">
+    </div>
+    <div class="form-group">
+        <label>排除元素 Exclude Selectors (逗号分隔，可选)</label>
+        <input type="text" id="excludeSel" placeholder=".Reward, button, .ContentItem-time">
+    </div>
+    <button id="btn-save">保存至本地配置</button>
+
+    <div class="form-group" style="margin-top: 30px; border-top: 2px solid #dee2e6; padding-top: 20px;">
+        <h2 style="font-size: 18px; margin-bottom: 15px;">🤖 AI 总结助手配置</h2>
+        <label>OpenAI 兼容 API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-..." style="font-family: Arial; padding: 10px; width: 100%; border: 1px solid #ccc; border-radius: 6px;">
+        <label style="margin-top: 10px;">API 接口地址 (Endpoint URL，需包含 /chat/completions)</label>
+        <input type="text" id="apiBase" placeholder="https://api.openai.com/v1/chat/completions" style="font-family: monospace; padding: 10px; width: 100%; border: 1px solid #ccc; border-radius: 6px;">
+        <label style="margin-top: 10px;">模型名称 (Model ID)</label>
+        <input type="text" id="apiModel" placeholder="gpt-4o-mini" style="font-family: monospace; padding: 10px; width: 100%; border: 1px solid #ccc; border-radius: 6px;">
+        <button id="btn-save-ai" style="margin-top: 15px; background: #2c3e50;">保存 AI 配置</button>
+    </div>
+
+    <div class="form-group" style="margin-top: 30px; border-top: 2px solid #dee2e6; padding-top: 20px;">
+        <h2 style="font-size: 18px; margin-bottom: 15px;">🔖 书签服务配置</h2>
+        <label>Cloudflare Worker 书签服务 URL</label>
+        <input type="text" id="workerUrl" placeholder="https://your-worker.workers.dev" style="font-family: monospace; padding: 10px; width: 100%; border: 1px solid #ccc; border-radius: 6px;">
+        <button id="btn-save-worker" style="margin-top: 15px; background: #2c3e50;">保存书签配置</button>
+    </div>
+
+    <div id="rules-list"></div>
+
+    <script src="options.js"></script>
+</body>
+</html>

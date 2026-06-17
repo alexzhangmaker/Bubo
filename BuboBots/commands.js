@@ -81,8 +81,105 @@ const handlers = {
             return `<b>Failed to fetch alerts:</b> ${err.message}`;
         }
     },
+    'buy': async (args) => {
+        if (args.length < 7 || args[2].toLowerCase() !== 'at' || args[5].toLowerCase() !== 'using') {
+            return "Usage: /buy [ticker] [amount] at [currency] [price] using [account]\nExample: /buy 0700.HK 100 at HKD 450.00 using ZSZQ";
+        }
+        
+        const ticker = args[0].toUpperCase();
+        const shares = parseFloat(args[1]);
+        const currency = args[3].toUpperCase();
+        const price = parseFloat(args[4]);
+        const accountID = args[6];
+        
+        if (isNaN(shares) || shares <= 0) {
+            return "❌ Invalid amount. It must be a positive number.";
+        }
+        if (isNaN(price) || price <= 0) {
+            return "❌ Invalid price. It must be a positive number.";
+        }
+        
+        const payload = {
+            datetime: new Date().toISOString(),
+            ticker,
+            action: 'buy',
+            shares,
+            price,
+            currency,
+            accountID
+        };
+        
+        try {
+            const axios = require('axios');
+            const response = await axios.post('http://localhost:3008/api/deals', payload);
+            
+            if (response.data && response.data.id) {
+                return `✅ Transaction registered successfully!\n<b>ID:</b> ${response.data.id}\n<b>Ticker:</b> ${ticker}\n<b>Action:</b> BUY\n<b>Amount:</b> ${shares}\n<b>Price:</b> ${price} ${currency}\n<b>Account:</b> ${accountID}`;
+            } else {
+                return `❌ Failed to record transaction: Unknown response from AccountingService.`;
+            }
+        } catch (err) {
+            const errorMsg = err.response && err.response.data && err.response.data.error 
+                ? err.response.data.error 
+                : err.message;
+            return `❌ Error communicating with AccountingService: ${errorMsg}`;
+        }
+    },
+    'sell': async (args) => {
+        if (args.length < 7 || args[2].toLowerCase() !== 'at' || args[5].toLowerCase() !== 'using') {
+            return "Usage: /sell [ticker] [amount] at [currency] [price] using [account]\nExample: /sell 0700.HK 100 at HKD 450.00 using ZSZQ";
+        }
+        
+        const ticker = args[0].toUpperCase();
+        const shares = parseFloat(args[1]);
+        const currency = args[3].toUpperCase();
+        const price = parseFloat(args[4]);
+        const accountID = args[6];
+        
+        if (isNaN(shares) || shares <= 0) {
+            return "❌ Invalid amount. It must be a positive number.";
+        }
+        if (isNaN(price) || price <= 0) {
+            return "❌ Invalid price. It must be a positive number.";
+        }
+        
+        const payload = {
+            datetime: new Date().toISOString(),
+            ticker,
+            action: 'sell',
+            shares,
+            price,
+            currency,
+            accountID
+        };
+        
+        try {
+            const axios = require('axios');
+            const response = await axios.post('http://localhost:3008/api/deals', payload);
+            
+            if (response.data && response.data.id) {
+                return `✅ Transaction registered successfully!\n<b>ID:</b> ${response.data.id}\n<b>Ticker:</b> ${ticker}\n<b>Action:</b> SELL\n<b>Amount:</b> ${shares}\n<b>Price:</b> ${price} ${currency}\n<b>Account:</b> ${accountID}`;
+            } else {
+                return `❌ Failed to record transaction: Unknown response from AccountingService.`;
+            }
+        } catch (err) {
+            const errorMsg = err.response && err.response.data && err.response.data.error 
+                ? err.response.data.error 
+                : err.message;
+            return `❌ Error communicating with AccountingService: ${errorMsg}`;
+        }
+    },
+    'manual': async () => {
+        return "<b>Command Manual:</b>\n\n" +
+               "<b>buy:</b> /buy ticker amount at currency price using account\n" +
+               "<b>sell:</b> /sell ticker amount at currency price using account\n" +
+               "<b>alert:</b> /alert ticker quote1 quote2\n" +
+               "<b>alerts:</b> /alerts\n" +
+               "<b>echo:</b> /echo msg\n" +
+               "<b>help:</b> /help";
+    },
     'help': async () => {
-        return "<b>Available commands:</b>\n/echo [msg]\n/alert [ticker] [quote1] [quote2]\n/alerts\n/help";
+        return "<b>Available commands:</b>\n/echo [msg]\n/alert [ticker] [quote1] [quote2]\n/alerts\n/buy [ticker] [amount] at [currency] [price] using [account]\n/sell [ticker] [amount] at [currency] [price] using [account]\n/manual\n/help";
     }
 };
 

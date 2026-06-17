@@ -333,12 +333,50 @@
                 <span id="acc-loading-indicator" style="color:var(--accent);font-weight:600;font-size:.85rem;display:none">处理中…</span>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">账户资产汇总</span>
-                    <span id="acc-table-meta" class="query-meta"></span>
+            <!-- Consolidated Balance Sheet Card -->
+            <div class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white; border: none; margin-bottom: 2rem;">
+                <div class="card-header" style="background: transparent; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem;">
+                    <span class="card-title" style="color: #f8fafc; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">合并资产负债表 (Consolidated Balance Sheet)</span>
+                    <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 500;">本币折算单位: 人民币 (CNY)</span>
                 </div>
-                <div id="accounts-dt"></div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; padding: 1.5rem 2rem;">
+                    <div style="background: rgba(255,255,255,0.05); padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">现金资产 (Cash)</div>
+                        <div id="bs-total-cash" style="font-size: 1.5rem; font-weight: 800; color: #38bdf8;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">持仓市值 (Securities)</div>
+                        <div id="bs-total-securities" style="font-size: 1.5rem; font-weight: 800; color: #a78bfa;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">资产总值 (Assets)</div>
+                        <div id="bs-total-assets" style="font-size: 1.5rem; font-weight: 800; color: #34d399;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">负债总值 (Liabilities)</div>
+                        <div id="bs-total-liabilities" style="font-size: 1.5rem; font-weight: 800; color: #f87171;">-</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">净资产 (Net Equity)</div>
+                        <div id="bs-net-assets" style="font-size: 1.5rem; font-weight: 800; color: #fbbf24;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">
+                    <span class="card-title">证券账户资产汇总</span>
+                    <span id="sec-acc-table-meta" class="query-meta"></span>
+                </div>
+                <div id="sec-accounts-dt"></div>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">
+                    <span class="card-title">其他资产汇总</span>
+                    <span id="other-acc-table-meta" class="query-meta"></span>
+                </div>
+                <div id="other-accounts-dt"></div>
             </div>
         </div>
 
@@ -948,21 +986,42 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         }
     }
 
-    // ── Accounts DataTable instance ──────────────────────────────────────────
-    let accountsDT = null;
+    // ── Accounts DataTable instances ──────────────────────────────────────────
+    let secAccountsDT = null;
+    let otherAccountsDT = null;
     const ACCOUNT_COLS = [
         { name: '账户名 (AccountID)', id: 'accountID', format: v => {
-            if (v === 'TOTAL_ASSETS') return `<b style="color:var(--primary)">汇总合计 (TOTAL)</b>`;
+            if (v === 'TOTAL_ASSETS' || v === 'TOTAL_ASSETS_SEC' || v === 'TOTAL_ASSETS_OTHER') return `<b style="color:var(--primary)">汇总合计 (TOTAL)</b>`;
             return `<span class="ticker-badge" style="background:var(--accent-dim);color:var(--accent)">${v}</span>`;
-        }, editable: false, resizable: true, width: 250 },
-        { name: '总成本 (CNY)', id: 'totalCostCNY', format: v => `¥ ${fmt(v)}`, editable: false, resizable: true, width: 160, align: 'right' },
-        { name: '当前现值 (CNY)', id: 'totalValueTTMCNY', format: v => `<b style="color:var(--primary)">¥ ${fmt(v)}</b>`, editable: false, resizable: true, width: 180, align: 'right' },
+        }, editable: false, resizable: true, width: 200 },
+        { name: '现金 (CNY)', id: 'cashCNY', format: v => v != null ? `¥ ${fmt(v)}` : '—', editable: false, resizable: true, width: 140, align: 'right' },
+        { name: '证券市值 (CNY)', id: 'securitiesValueCNY', format: v => v != null ? `¥ ${fmt(v)}` : '—', editable: false, resizable: true, width: 160, align: 'right' },
+        { name: '证券成本 (CNY)', id: 'securitiesCostCNY', format: v => v != null ? `¥ ${fmt(v)}` : '—', editable: false, resizable: true, width: 160, align: 'right' },
+        { name: '负债 (CNY)', id: 'liabilitiesCNY', format: v => v != null ? `¥ ${fmt(v)}` : '—', editable: false, resizable: true, width: 140, align: 'right' },
+        { name: '净资产 (CNY)', id: 'netAssetsCNY', format: v => v != null ? `<b style="color:#d97706">¥ ${fmt(v)}</b>` : '—', editable: false, resizable: true, width: 160, align: 'right' },
+        { name: '总资产 (CNY)', id: 'totalValueTTMCNY', format: v => `<b style="color:var(--primary)">¥ ${fmt(v)}</b>`, editable: false, resizable: true, width: 160, align: 'right' },
         { name: '盈亏率 %', id: 'profitPercent', format: v => {
             const n = Number(v);
             const cls = n >= 0 ? 'up' : 'down';
             return `<span class="${cls}" style="font-weight:800">${n >= 0 ? '+' : ''}${n.toFixed(2)}%</span>`;
         }, editable: false, resizable: true, width: 120, align: 'right' },
     ];
+
+    function mergeDetails(rows) {
+        const merged = { cash: [], securities: [], liabilities: [] };
+        rows.forEach(r => {
+            if (!r.details) return;
+            try {
+                const d = JSON.parse(r.details);
+                if (d.cash && Array.isArray(d.cash)) merged.cash.push(...d.cash);
+                if (d.securities && Array.isArray(d.securities)) merged.securities.push(...d.securities);
+                if (d.liabilities && Array.isArray(d.liabilities)) merged.liabilities.push(...d.liabilities);
+            } catch(e) {
+                console.error("Error merging details for " + r.accountID, e);
+            }
+        });
+        return JSON.stringify(merged);
+    }
 
     async function loadAccounts(date) {
         if (!window._duckReady) return;
@@ -974,8 +1033,73 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
                 ORDER BY CASE WHEN accountID = 'TOTAL_ASSETS' THEN 1 ELSE 0 END, totalValueTTMCNY DESC
             `);
             const rows = arrowToRows(res);
-            buildAccountsDT(rows);
-            document.getElementById('acc-table-meta').innerText = `${rows.length - 1} 个账户条目`;
+
+            // Filter actual account snapshots (excluding the database's combined TOTAL_ASSETS row)
+            const secBrokerRows = rows.filter(r => r.account_type === 'securities');
+            const otherBrokerRows = rows.filter(r => r.account_type === 'other');
+
+            // Calculate Securities Table summary row
+            const totalSecRow = {
+                accountID: 'TOTAL_ASSETS_SEC',
+                account_type: 'securities',
+                snapshot_date: date,
+                cashCNY: secBrokerRows.reduce((sum, r) => sum + (r.cashCNY || 0), 0),
+                securitiesValueCNY: secBrokerRows.reduce((sum, r) => sum + (r.securitiesValueCNY || 0), 0),
+                securitiesCostCNY: secBrokerRows.reduce((sum, r) => sum + (r.securitiesCostCNY || 0), 0),
+                liabilitiesCNY: secBrokerRows.reduce((sum, r) => sum + (r.liabilitiesCNY || 0), 0),
+                netAssetsCNY: secBrokerRows.reduce((sum, r) => sum + (r.netAssetsCNY || 0), 0),
+                totalValueTTMCNY: secBrokerRows.reduce((sum, r) => sum + (r.totalValueTTMCNY || 0), 0),
+                details: mergeDetails(secBrokerRows)
+            };
+            totalSecRow.profitPercent = totalSecRow.securitiesCostCNY > 0 ? 
+                ((totalSecRow.securitiesValueCNY / totalSecRow.securitiesCostCNY - 1) * 100) : 0.0;
+
+            // Calculate Other Assets Table summary row
+            const totalOtherRow = {
+                accountID: 'TOTAL_ASSETS_OTHER',
+                account_type: 'other',
+                snapshot_date: date,
+                cashCNY: otherBrokerRows.reduce((sum, r) => sum + (r.cashCNY || 0), 0),
+                securitiesValueCNY: otherBrokerRows.reduce((sum, r) => sum + (r.securitiesValueCNY || 0), 0),
+                securitiesCostCNY: otherBrokerRows.reduce((sum, r) => sum + (r.securitiesCostCNY || 0), 0),
+                liabilitiesCNY: otherBrokerRows.reduce((sum, r) => sum + (r.liabilitiesCNY || 0), 0),
+                netAssetsCNY: otherBrokerRows.reduce((sum, r) => sum + (r.netAssetsCNY || 0), 0),
+                totalValueTTMCNY: otherBrokerRows.reduce((sum, r) => sum + (r.totalValueTTMCNY || 0), 0),
+                details: mergeDetails(otherBrokerRows)
+            };
+            totalOtherRow.profitPercent = totalOtherRow.securitiesCostCNY > 0 ? 
+                ((totalOtherRow.securitiesValueCNY / totalOtherRow.securitiesCostCNY - 1) * 100) : 0.0;
+
+            // Append the summary row at the end of each table list
+            const secRows = [...secBrokerRows, totalSecRow];
+            const otherRows = [...otherBrokerRows, totalOtherRow];
+
+            // Update current accounts state (including our computed summary rows + DB's TOTAL_ASSETS row for defaults)
+            window._currentAccounts = [...rows, totalSecRow, totalOtherRow];
+
+            buildAccountsDT(secRows, otherRows);
+
+            document.getElementById('sec-acc-table-meta').innerText = `${secBrokerRows.length} 个证券账户`;
+            document.getElementById('other-acc-table-meta').innerText = `${otherBrokerRows.length} 个其他资产`;
+
+            // Populate consolidated summary cards (representing total portfolio assets)
+            const totalRow = rows.find(r => r.accountID === 'TOTAL_ASSETS');
+            if (totalRow) {
+                document.getElementById('bs-total-cash').innerText = '¥ ' + fmt(totalRow.cashCNY);
+                document.getElementById('bs-total-securities').innerText = '¥ ' + fmt(totalRow.securitiesValueCNY);
+                document.getElementById('bs-total-assets').innerText = '¥ ' + fmt(totalRow.totalValueTTMCNY);
+                document.getElementById('bs-total-liabilities').innerText = '¥ ' + fmt(totalRow.liabilitiesCNY);
+                document.getElementById('bs-net-assets').innerText = '¥ ' + fmt(totalRow.netAssetsCNY);
+                // Load TOTAL_ASSETS details in the drilldown by default
+                showAccountDetail(totalRow);
+            } else {
+                document.getElementById('bs-total-cash').innerText = '—';
+                document.getElementById('bs-total-securities').innerText = '—';
+                document.getElementById('bs-total-assets').innerText = '—';
+                document.getElementById('bs-total-liabilities').innerText = '—';
+                document.getElementById('bs-net-assets').innerText = '—';
+                document.getElementById('account-detail-section').style.display = 'none';
+            }
         } catch (err) {
             console.error('loadAccounts error:', err);
         } finally {
@@ -983,23 +1107,211 @@ ORDER BY snapshot_date DESC, total_value_cny DESC;</textarea>
         }
     }
 
-    function buildAccountsDT(rows) {
-        const container = document.getElementById('accounts-dt');
-        if (accountsDT) {
-            accountsDT.refresh(rows);
+    function buildAccountsDT(secRows, otherRows) {
+        const secContainer = document.getElementById('sec-accounts-dt');
+        const otherContainer = document.getElementById('other-accounts-dt');
+
+        // 1. Securities Table
+        if (secAccountsDT) {
+            secAccountsDT.refresh(secRows);
         } else {
-            accountsDT = new DataTable(container, {
+            secAccountsDT = new DataTable(secContainer, {
                 columns: ACCOUNT_COLS,
-                data: rows,
-                layout: { fixedHeight: true, tableHeight: '500px' },
+                data: secRows,
+                layout: { fixedHeight: true, tableHeight: '350px' },
                 enableClusterize: true,
                 serialNoColumn: false,
                 checkboxColumn: false,
                 inlineFilters: true,
             });
-            const filterRow = container.querySelector('[data-is-filter]');
+            const filterRow = secContainer.querySelector('[data-is-filter]');
             if (filterRow) filterRow.style.display = 'table-row';
+
+            // Bind click handler for row selection via event delegation
+            secContainer.addEventListener('click', (e) => {
+                const cellEl = e.target.closest('.dt-cell');
+                if (!cellEl) return;
+                const rowEl = cellEl.closest('.dt-row');
+                if (!rowEl) return;
+                const idCell = rowEl.querySelector('.dt-cell[data-column-id="accountID"]');
+                if (idCell) {
+                    const rawText = idCell.textContent.trim();
+                    let clickedAccId = rawText;
+                    if (rawText.includes('汇总合计') || rawText.includes('TOTAL')) {
+                        clickedAccId = 'TOTAL_ASSETS_SEC';
+                    }
+                    const foundRow = (window._currentAccounts || []).find(r => r.accountID === clickedAccId);
+                    if (foundRow) {
+                        showAccountDetail(foundRow);
+                    }
+                }
+            });
         }
+
+        // 2. Other Assets Table
+        if (otherAccountsDT) {
+            otherAccountsDT.refresh(otherRows);
+        } else {
+            otherAccountsDT = new DataTable(otherContainer, {
+                columns: ACCOUNT_COLS,
+                data: otherRows,
+                layout: { fixedHeight: true, tableHeight: '300px' },
+                enableClusterize: true,
+                serialNoColumn: false,
+                checkboxColumn: false,
+                inlineFilters: true,
+            });
+            const filterRow = otherContainer.querySelector('[data-is-filter]');
+            if (filterRow) filterRow.style.display = 'table-row';
+
+            // Bind click handler for row selection via event delegation
+            otherContainer.addEventListener('click', (e) => {
+                const cellEl = e.target.closest('.dt-cell');
+                if (!cellEl) return;
+                const rowEl = cellEl.closest('.dt-row');
+                if (!rowEl) return;
+                const idCell = rowEl.querySelector('.dt-cell[data-column-id="accountID"]');
+                if (idCell) {
+                    const rawText = idCell.textContent.trim();
+                    let clickedAccId = rawText;
+                    if (rawText.includes('汇总合计') || rawText.includes('TOTAL')) {
+                        clickedAccId = 'TOTAL_ASSETS_OTHER';
+                    }
+                    const foundRow = (window._currentAccounts || []).find(r => r.accountID === clickedAccId);
+                    if (foundRow) {
+                        showAccountDetail(foundRow);
+                    }
+                }
+            });
+        }
+    }
+
+    function showAccountDetail(row) {
+        const section = document.getElementById('account-detail-section');
+        if (!row) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = 'block';
+
+        const titleText = (row.accountID === 'TOTAL_ASSETS' || row.accountID === 'TOTAL_ASSETS_SEC' || row.accountID === 'TOTAL_ASSETS_OTHER') ? '合并汇总合计 (TOTAL CONSOLIDATED)' : row.accountID;
+        document.getElementById('detail-account-title').innerHTML = `账户明细折账表: <span class="ticker-badge" style="background:var(--accent-dim);color:var(--accent);font-size:0.95rem;padding:0.25rem 0.60rem">${titleText}</span>`;
+        document.getElementById('detail-account-meta').innerText = `快照日期: ${row.snapshot_date}`;
+
+        let details = { cash: [], securities: [], liabilities: [] };
+        try {
+            if (row.details) {
+                details = JSON.parse(row.details);
+            }
+        } catch (e) {
+            console.error("Failed to parse details JSON:", e);
+        }
+
+        // Render Cash
+        const cashContainer = document.getElementById('detail-cash-container');
+        if (!details.cash || details.cash.length === 0) {
+            cashContainer.innerHTML = '<div style="font-size:0.8rem; color:var(--muted); padding: 0.5rem 0.75rem;">无现金资产</div>';
+        } else {
+            cashContainer.innerHTML = `
+            <table style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);color:var(--muted)">
+                        <th style="padding: 6px; text-align: left;">币种</th>
+                        <th style="padding: 6px; text-align: right;">外币金额</th>
+                        <th style="padding: 6px; text-align: right;">汇率</th>
+                        <th style="padding: 6px; text-align: right;">折人民币 (CNY)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${details.cash.map(c => `
+                    <tr style="border-bottom:1px dashed var(--border);">
+                        <td style="padding: 6px;"><b>${c.currency}</b></td>
+                        <td style="padding: 6px; text-align: right;">${fmt(c.amount)}</td>
+                        <td style="padding: 6px; text-align: right; color: var(--muted);">${Number(c.exchangeRate).toFixed(4)}</td>
+                        <td style="padding: 6px; text-align: right; font-weight:600;">¥ ${fmt(c.amountInCNY)}</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // Render Securities
+        const secContainer = document.getElementById('detail-securities-container');
+        if (!details.securities || details.securities.length === 0) {
+            secContainer.innerHTML = '<div style="font-size:0.8rem; color:var(--muted); padding: 0.5rem 0.75rem;">无持仓证券</div>';
+        } else {
+            secContainer.innerHTML = `
+            <table style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);color:var(--muted)">
+                        <th style="padding: 6px; text-align: left;">代码</th>
+                        <th style="padding: 6px; text-align: right;">份额</th>
+                        <th style="padding: 6px; text-align: right;">成本/现价</th>
+                        <th style="padding: 6px; text-align: right;">持股市值 (CNY)</th>
+                        <th style="padding: 6px; text-align: right;">盈亏</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${details.securities.map(s => {
+                        const profitColor = s.profitLossCNY >= 0 ? 'var(--up)' : 'var(--down)';
+                        const profitSign = s.profitLossCNY >= 0 ? '+' : '';
+                        return `
+                        <tr style="border-bottom:1px dashed var(--border);">
+                            <td style="padding: 6px;"><b>${s.ticker}</b> <span style="font-size: 0.7rem; color: var(--muted);">(${s.currency})</span></td>
+                            <td style="padding: 6px; text-align: right;">${fmtInt(s.shares)}</td>
+                            <td style="padding: 6px; text-align: right;">
+                                <div>${fmt(s.costPerShare)}</div>
+                                <div style="color: var(--muted); font-size: 0.7rem;">${fmt(s.marketPrice)}</div>
+                            </td>
+                            <td style="padding: 6px; text-align: right;">
+                                <b>¥ ${fmt(s.marketValueInCNY)}</b>
+                                <div style="color: var(--muted); font-size: 0.7rem;">成本 ¥ ${fmt(s.totalCostInCNY)}</div>
+                            </td>
+                            <td style="padding: 6px; text-align: right; font-weight: 600; color: ${profitColor}">
+                                <div>${profitSign}${fmt(s.profitLossCNY)}</div>
+                                <div style="font-size: 0.7rem;">${profitSign}${Number(s.profitLossPercent).toFixed(2)}%</div>
+                            </td>
+                        </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // Render Liabilities
+        const liabContainer = document.getElementById('detail-liabilities-container');
+        if (!details.liabilities || details.liabilities.length === 0) {
+            liabContainer.innerHTML = '<div style="font-size:0.8rem; color:var(--muted); padding: 0.5rem 0.75rem;">无欠款负债</div>';
+        } else {
+            liabContainer.innerHTML = `
+            <table style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border);color:var(--muted)">
+                        <th style="padding: 6px; text-align: left;">币种</th>
+                        <th style="padding: 6px; text-align: right;">负债金额</th>
+                        <th style="padding: 6px; text-align: right;">折折人民币 (CNY)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${details.liabilities.map(l => `
+                    <tr style="border-bottom:1px dashed var(--border);">
+                        <td style="padding: 6px;"><b>${l.currency}</b></td>
+                        <td style="padding: 6px; text-align: right;">${fmt(l.amount)}</td>
+                        <td style="padding: 6px; text-align: right; font-weight:600; color:var(--down);">¥ ${fmt(l.amountInCNY)}</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // Render Equity Box
+        document.getElementById('detail-equity-value').innerText = 'CNY ' + fmt(row.netAssetsCNY);
+        document.getElementById('detail-equity-cost').innerHTML = `证券持仓成本: <b>CNY ${fmt(row.securitiesCostCNY)}</b>`;
+        
+        const pnl = row.securitiesValueCNY - row.securitiesCostCNY;
+        const profitColor = pnl >= 0 ? 'var(--up)' : 'var(--down)';
+        const profitSign = pnl >= 0 ? '+' : '';
+        document.getElementById('detail-equity-pnl').innerHTML = `未实现盈亏: <b style="color:${profitColor}">${profitSign}${fmt(pnl)} (${profitSign}${Number(row.profitPercent).toFixed(2)}%)</b>`;
     }
 
     // ── Holdings DataTable instance ────────────────────────────────────────────

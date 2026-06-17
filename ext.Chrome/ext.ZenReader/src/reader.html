@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenReader</title>
+    <!-- 引入 Inter 字体，保证任何系统都能展现完美的纯净英文字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="reader.css">
+</head>
+<body>
+    <!-- 侧边栏目录 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">目录</div>
+        <nav id="toc"></nav>
+    </aside>
+
+    <!-- 阅读区主体 -->
+    <main class="reader-container">
+        <header>
+            <h1 id="article-title"></h1>
+            <div id="article-byline"></div>
+        </header>
+        <article id="article-content"></article>
+    </main>
+
+    <!-- 生产力工具栏 (Action Bar) -->
+    <aside class="action-bar">
+        <div class="action-header">✍️ 生产力工具箱</div>
+        <div class="action-buttons">
+            <button id="btn-summary">AI 一键总结</button>
+            <button id="btn-delete-bookmark">删除该文档书签</button>
+            <button id="btn-create-card">创建知识卡片</button>
+            <button id="btn-extract-tables">提取所有表格 (MD格式)</button>
+            <button id="btn-export-md">导出全文 Markdown</button>
+        </div>
+        <textarea id="ai-output" placeholder="AI 摘要或提取的内容将显示在这里，您可以手动编辑..."></textarea>
+    </aside>
+
+    <!-- 知识卡片创建弹窗 -->
+    <div id="card-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>创建知识卡片</h3>
+                <button id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label>卡片标题</label>
+                <input type="text" id="card-title" placeholder="请输入卡片标题...">
+                <label>标签 (逗号分隔)</label>
+                <input type="text" id="card-tags" placeholder="例如: 金融, 财报, 2024">
+                <p style="font-size: 12px; color: #666; margin-top: 10px;">摘要内容将自动采用当前 AI 输出框中的文本。</p>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-save-card">确认保存到知识库</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../libs/turndown.js"></script>
+    <script src="../libs/turndown-plugin-gfm.js"></script>
+    <script src="reader.js"></script>
+</body>
+</html>

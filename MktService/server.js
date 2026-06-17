@@ -118,6 +118,62 @@ app.get('/api/exrate/:from/:to', async (req, res) => {
     }
 });
 
+// Macro Data API (US Treasury Yields & China Treasury Yields)
+app.get('/api/macro', async (req, res) => {
+    try {
+        // 1. Fetch US Treasury Yields
+        const usUrl = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/slgs_time_deposit_rates?sort=-record_date&filter=from:in:(05-00,10-00,30-00)&page[size]=3';
+        let usData = [];
+        try {
+            const usResponse = await fetch(usUrl);
+            if (usResponse.ok) {
+                const usJson = await usResponse.json();
+                usData = (usJson.data || []).map(item => {
+                    let name = '';
+                    if (item.from === '05-00') name = '美国国债5年期 (US 5Y)';
+                    else if (item.from === '10-00') name = '美国国债10年期 (US 10Y)';
+                    else if (item.from === '30-00') name = '美国国债30年期 (US 30Y)';
+                    else name = `美国国债 ${item.from}`;
+
+                    return {
+                        name,
+                        from: item.from,
+                        rate: parseFloat(item.rate),
+                        record_date: item.record_date,
+                        source: 'U.S. Treasury Fiscal Data (SLGS Table)'
+                    };
+                });
+                // Ensure ordering: 5Y, 10Y, 30Y
+                const order = { '05-00': 1, '10-00': 2, '30-00': 3 };
+                usData.sort((a, b) => (order[a.from] || 99) - (order[b.from] || 99));
+            } else {
+                console.error(`US Fiscal Data API returned status: ${usResponse.status}`);
+            }
+        } catch (e) {
+            console.error('Failed to fetch US treasury yields:', e.message);
+        }
+
+        // 2. Fetch China Treasury Yields from pyAnalytics service (port 3010)
+        let cnData = [];
+        try {
+            const cnResponse = await fetch('http://localhost:3010/api/bond_china');
+            if (cnResponse.ok) {
+                cnData = await cnResponse.json();
+            } else {
+                console.error(`pyAnalytics API returned status: ${cnResponse.status}`);
+            }
+        } catch (e) {
+            console.error('Failed to fetch China treasury yields from pyAnalytics:', e.message);
+        }
+
+        // Combine both
+        const combinedData = [...usData, ...cnData];
+        res.json(combinedData);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Fetch on demand API
 app.post('/api/market/fetch/:ticker', async (req, res) => {
     const { ticker } = req.params;
